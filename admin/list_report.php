@@ -23,3 +23,5 @@ $reports = $stmt->fetchAll();
         </tr>
     <?php endforeach; ?>
 </table>
+    <br>
+    <a href="dashboard.php">← Quay lại Dashboard</a>
