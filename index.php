@@ -12,7 +12,7 @@
         <p>Chào mừng đến với hệ thống quản lý thư viện. Vui lòng chọn chức năng bên dưới:</p>
         <div class="button-group">
             <a href="auth/login.php" class="button">🔐 Đăng nhập</a>
-            <a href="admin/create_account.php" class="button">🆕 Tạo tài khoản</a>
+            <a href="auth/register.php" class="button">🆕 Tạo tài khoản</a>
         </div>
     </div>
 </body>

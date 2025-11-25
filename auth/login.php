@@ -38,7 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input type="text" name="username" placeholder="Tên đăng nhập" required><br><br>
             <input type="password" name="password" placeholder="Mật khẩu" required><br><br>
             <button type="submit">Đăng nhập</button>
-            <a href="register.php" class="button"> Tạo tài khoản độc giả</a>
         </form>
         <br>
         <a href="../index.php" class="button">⬅ Quay về trang chính</a>
