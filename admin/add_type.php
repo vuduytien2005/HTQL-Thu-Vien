@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $mo_ta = $_POST['mo_ta'];
     
     try {
-        $stmt = $pdo->prepare("INSERT INTO the_loai (Ma_the_loai, Ten_the_loai, Mo_ta) VALUES (?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO sach_the_loai (Ma_the_loai, Ten_the_loai, Mo_ta) VALUES (?, ?, ?)");
         $stmt->execute([$ma_the_loai, $ten_the_loai, $mo_ta]);
         
         header('Location: add_book.php?success=Thêm thể loại thành công');
@@ -59,5 +59,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!-- Nút quay về Dashboard -->
 <p>
-    <a href="/QLY_THUVIEN/HTQL-Thu-Vien/admin/dashboard.php">← Quay về Dashboard</a>
+    <a href="dashboard.php">← Quay về Dashboard</a>
 </p>

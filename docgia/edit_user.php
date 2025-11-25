@@ -3,25 +3,31 @@ session_start();
 require '../config/db.php';
 
 // Kiểm tra đăng nhập
-if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
+if (!isset($_SESSION["user"])) {
+    header('Location: ../auth/login.php');
     exit;
 }
 
-// Lấy mã độc giả từ URL
-$ma_doc_gia = $_GET['id'] ?? '';
+// Lấy thông tin user từ session
+$user = $_SESSION["user"];
+$user_id = $user["id"];
+$username = $user["username"];
 
-if (!$ma_doc_gia) {
-    die("❌ Không tìm thấy độc giả");
-}
-
-// Lấy thông tin độc giả hiện tại
+// Lấy thông tin độc giả từ bảng DOC_GIA dựa vào user_id
 $stmt = $pdo->prepare("SELECT * FROM DOC_GIA WHERE Ma_doc_gia = ?");
-$stmt->execute([$ma_doc_gia]);
+$stmt->execute([$user_id]);
 $doc_gia = $stmt->fetch();
 
+// Nếu chưa có thông tin trong DOC_GIA, tạo bản ghi mới
 if (!$doc_gia) {
-    die("❌ Không tìm thấy thông tin độc giả");
+    // Tạo thông tin mặc định
+    $stmt = $pdo->prepare("INSERT INTO DOC_GIA (Ma_doc_gia, Ho_ten) VALUES (?, ?)");
+    $stmt->execute([$user_id, $username]);
+    
+    // Lấy lại thông tin
+    $stmt = $pdo->prepare("SELECT * FROM DOC_GIA WHERE Ma_doc_gia = ?");
+    $stmt->execute([$user_id]);
+    $doc_gia = $stmt->fetch();
 }
 
 // Xử lý cập nhật thông tin
@@ -35,13 +41,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         $stmt = $pdo->prepare("UPDATE DOC_GIA SET Ho_ten = ?, Ngay_sinh = ?, Gioi_tinh = ?, Dia_chi = ?, SDT = ?, Email = ? WHERE Ma_doc_gia = ?");
-        $stmt->execute([$ho_ten, $ngay_sinh, $gioi_tinh, $dia_chi, $sdt, $email, $ma_doc_gia]);
+        $stmt->execute([$ho_ten, $ngay_sinh, $gioi_tinh, $dia_chi, $sdt, $email, $doc_gia['Ma_doc_gia']]);
         
-        $success = "✅ Cập nhật thông tin độc giả thành công!";
+        $success = "✅ Cập nhật thông tin thành công!";
+        
+        // Cập nhật session
+        $_SESSION["user"]["Ho_ten"] = $ho_ten;
         
         // Lấy lại thông tin mới nhất
         $stmt = $pdo->prepare("SELECT * FROM DOC_GIA WHERE Ma_doc_gia = ?");
-        $stmt->execute([$ma_doc_gia]);
+        $stmt->execute([$doc_gia['Ma_doc_gia']]);
         $doc_gia = $stmt->fetch();
         
     } catch (Exception $e) {
@@ -54,38 +63,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Chỉnh sửa thông tin độc giả</title>
-    <link rel="stylesheet" href="../assets/style.css">
+    <title>Chỉnh sửa thông tin cá nhân</title>
 </head>
 <body>
-    <div class="container">
-        <h1>✏️ Chỉnh sửa thông tin độc giả</h1>
+    <div>
+        <h1>✏️ Chỉnh sửa thông tin cá nhân</h1>
         
-        <?php
-        if (!empty($error)) echo "<p style='color:red;'>$error</p>";
-        if (!empty($success)) echo "<p style='color:green;'>$success</p>";
-        ?>
+        <?php if (!empty($error)): ?>
+            <div><?php echo $error; ?></div>
+        <?php endif; ?>
+        
+        <?php if (!empty($success)): ?>
+            <div><?php echo $success; ?></div>
+        <?php endif; ?>
         
         <form method="POST">
-            <!-- Hiển thị mã độc giả (không cho sửa) -->
-            <div style="margin-bottom: 15px;">
+            <div>
                 <strong>Mã độc giả:</strong>
                 <br>
-                <input type="text" value="<?php echo htmlspecialchars($doc_gia['Ma_doc_gia']); ?>" disabled style="background-color: #f0f0f0;">
+                <input type="text" value="<?php echo htmlspecialchars($doc_gia['Ma_doc_gia']); ?>" disabled>
+            </div>
+
+            <div>
+                <strong>Tên đăng nhập:</strong>
+                <br>
+                <input type="text" value="<?php echo htmlspecialchars($username); ?>" disabled>
+                </div>
+            
+            <div>
+                <strong>Họ và tên *</strong>
+                <br>
+                <input type="text" name="ho_ten" value="<?php echo htmlspecialchars($doc_gia['Ho_ten']); ?>" required>
             </div>
             
-            <p><strong>Họ và tên *</strong></p>
-            <input type="text" name="ho_ten" value="<?php echo htmlspecialchars($doc_gia['Ho_ten']); ?>" placeholder="Họ và tên" required>
-            
-            <!-- Dòng Ngày sinh -->
-            <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                <strong style="width: 100px;">Ngày sinh</strong>
+            <div>
+                <strong>Ngày sinh</strong>
+                <br>
                 <input type="date" name="ngay_sinh" value="<?php echo $doc_gia['Ngay_sinh']; ?>">
             </div>
             
-            <!-- Dòng Giới tính -->
-            <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                <strong style="width: 100px;">Giới tính</strong>
+            <div>
+                <strong>Giới tính</strong>
+                <br>
                 <select name="gioi_tinh">
                     <option value="">-- Chọn giới tính --</option>
                     <option value="Nam" <?php echo ($doc_gia['Gioi_tinh'] == 'Nam') ? 'selected' : ''; ?>>Nam</option>
@@ -94,21 +113,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </select>
             </div>
             
-            <p><strong>Địa chỉ</strong></p>
-            <input type="text" name="dia_chi" value="<?php echo htmlspecialchars($doc_gia['Dia_chi']); ?>" placeholder="Địa chỉ">
+            <div>
+                <strong>Địa chỉ</strong>
+                <br>
+                <input type="text" name="dia_chi" value="<?php echo htmlspecialchars($doc_gia['Dia_chi']); ?>">
+            </div>
             
-            <p><strong>Số điện thoại</strong></p>
-            <input type="tel" name="sdt" value="<?php echo htmlspecialchars($doc_gia['SDT']); ?>" placeholder="Số điện thoại">
+            <div>
+                <strong>Số điện thoại</strong>
+                <br>
+                <input type="tel" name="sdt" value="<?php echo htmlspecialchars($doc_gia['SDT']); ?>">
+            </div>
             
-            <p><strong>Email</strong></p>
-            <input type="email" name="email" value="<?php echo htmlspecialchars($doc_gia['Email']); ?>" placeholder="Email">
+            <div>
+                <strong>Email</strong>
+                <br>
+                <input type="email" name="email" value="<?php echo htmlspecialchars($doc_gia['Email']); ?>">
+            </div>
             
-            <br><br>
+            <br>
             <button type="submit">💾 Cập nhật thông tin</button>
         </form>
         
         <br>
-        <a href="javascript:history.back()" class="button">⬅ Quay lại</a>
+        <a href="dashboard.php">⬅ Quay lại trang chủ</a>
     </div>
 </body>
 </html>
