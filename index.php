@@ -13,7 +13,6 @@
         <div class="button-group">
             <a href="auth/login.php" class="button">🔐 Đăng nhập</a>
             <a href="admin/create_account.php" class="button">🆕 Tạo tài khoản</a>
-            <a href="admin/list_reports.php" class="button">📊 Xem báo cáo</a>
         </div>
     </div>
 </body>

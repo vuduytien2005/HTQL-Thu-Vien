@@ -55,8 +55,8 @@ $books = $stmt->fetchAll();
         <td><?= $book['So_ban_dang_muon'] ?></td>
         <td>
             <a href="update_book.php?ma_sach=<?= $book['Ma_sach'] ?>">Sửa</a>
-            <a href="delete_book.php?ma_sach=<?= $book['Ma_sach'] ?>" 
-               onclick="return confirm('Bạn có chắc chắn muốn xóa sách \"<?= $book['Ten_sach'] ?>\" không?')">Xóa</a>
+            <a href="delete_book.php?ma_sach=<?= $book['Ma_sach'] ?>"
+             onclick='return confirm("Bạn có chắc chắn muốn xóa sách <?= htmlspecialchars($book['Ten_sach']) ?> không?")'>Xóa</a>
         </td>
     </tr>
     <?php endforeach; ?>
@@ -65,5 +65,5 @@ $books = $stmt->fetchAll();
 <p><a href="add_book.php">Thêm sách mới</a></p>
 
 <p>
-    <a href="/QLY_THUVIEN/HTQL-Thu-Vien/admin/dashboard.php">← Quay về Dashboard</a>
+    <a href="dashboard.php">← Quay về Dashboard</a>
 </p>

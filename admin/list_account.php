@@ -47,7 +47,7 @@ $accounts = $stmt->fetchAll();
 
 <!-- Nút quay về Dashboard -->
 <p>
-    <a href="/QLY_THUVIEN/HTQL-Thu-Vien/admin/dashboard.php">← Quay về Dashboard</a>
+    <a href="../admin/dashboard.php">← Quay về Dashboard</a>
 </p>
 
 <!-- Form sửa tài khoản (chỉ hiện khi đang sửa) -->

@@ -12,14 +12,28 @@ $reports = $stmt->fetchAll();
 
 <h3>Danh sách báo cáo thống kê</h3>
 <table border="1">
-    <tr><th>ID</th><th>Loại báo cáo</th><th>Thời gian</th><th>Người tạo</th><th>Dữ liệu</th></tr>
+    <tr>
+        <th>ID</th>
+        <th>Loại báo cáo</th>
+        <th>Thời gian</th>
+        <th>Người tạo</th>
+        <th>Dữ liệu</th>
+        <th>Hành động</th> <!-- thêm cột mới -->
+    </tr>
     <?php foreach ($reports as $r): ?>
         <tr>
             <td><?= $r['Ma_bao_cao'] ?></td>
             <td><?= $r['Loai_bao_cao'] ?></td>
             <td><?= $r['Thoi_gian_tao'] ?></td>
             <td><?= $r['Nguoi_tao'] ?></td>
-            <td><pre><?= json_encode(json_decode($r['Du_lieu']), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) ?></pre></td>
+            <td>
+                <pre><?= json_encode(json_decode($r['Du_lieu']), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) ?></pre>
+            </td>
+            <td>
+                <a href="view_report.php?id=<?= $r['Ma_bao_cao'] ?>">Xem</a>
+            </td>
         </tr>
     <?php endforeach; ?>
 </table>
+<br>
+<a href="dashboard.php">← Quay lại Dashboard</a>

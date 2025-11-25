@@ -42,7 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $pdo->commit();
-        header('Location: list_book.php?success=Thêm sách thành công');
+        // CHUYỂN HƯỚNG VỀ DASHBOARD THAY VÌ LIST_BOOK
+        header('Location: dashboard.php?success=Thêm sách thành công');
         exit();
     } catch (PDOException $e) {
         $pdo->rollBack();
@@ -68,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!-- Nút quay về Dashboard -->
 <p>
-    <a href="/QLY_THUVIEN/HTQL-Thu-Vien/admin/dashboard.php">← Quay về Dashboard</a>
+    <a href="dashboard.php">← Quay về Dashboard</a>
 </p>
 
 <form method="POST">
@@ -131,6 +132,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </p>
     <p>
         <button type="submit">Thêm sách</button>
-        <a href="list_book.php">Hủy</a>
+        <a href="dashboard.php">Hủy</a>
     </p>
 </form>
