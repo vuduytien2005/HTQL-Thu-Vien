@@ -1,14 +1,14 @@
 <?php
-include 'connnect.php';
+include 'db.php';
 
 $search = "";
 if(isset($_GET['search'])){
     $search = $_GET['search'];
-    $stmt = $conn->prepare("SELECT * FROM account WHERE role='user' AND (username LIKE ? OR email LIKE ?)");
+    $stmt = $conn->prepare("SELECT * FROM doc_gia WHERE role='user' AND (username LIKE ? OR email LIKE ?)");
     $like = "%$search%";
     $stmt->bind_param("ss",$like,$like);
 } else {
-    $stmt = $conn->prepare("SELECT * FROM account WHERE role='user'");
+    $stmt = $conn->prepare("SELECT * FROM doc_gia WHERE role='user'");
 }
 $stmt->execute();
 $result = $stmt->get_result();
@@ -26,7 +26,7 @@ $result = $stmt->get_result();
     </tr>
     <?php while($row=$result->fetch_assoc()): ?>
     <tr>
-        <td><?php echo $row['id'];?></td>
+        <td><?php echo $row['Ma_doc_gia'];?></td>
         <td><?php echo $row['username'];?></td>
         <td><?php echo $row['email'];?></td>
         <td><?php echo $row['created_at'];?></td>

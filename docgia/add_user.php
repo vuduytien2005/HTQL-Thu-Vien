@@ -1,5 +1,5 @@
 <?php
-include 'connnect.php';
+include 'db.php';
 $message = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -8,14 +8,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
 
     // Kiểm tra trùng
-    $check = $conn->prepare("SELECT * FROM account WHERE username=? OR email=?");
+    $check = $conn->prepare("SELECT * FROM doc_gia WHERE username=? OR email=?");
     $check->bind_param("ss", $username, $email);
     $check->execute();
     $result = $check->get_result();
     if ($result->num_rows > 0) {
         $message = "Username hoặc email đã tồn tại!";
     } else {
-        $stmt = $conn->prepare("INSERT INTO account (username,password,email,role) VALUES (?, ?, ?, 'user')");
+        $stmt = $conn->prepare("INSERT INTO doc_gia (username,password,email,role) VALUES (?, ?, ?, 'user')");
         $stmt->bind_param("sss", $username, $password, $email);
         $stmt->execute();
         $stmt->close();

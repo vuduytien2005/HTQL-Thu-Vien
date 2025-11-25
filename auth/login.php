@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($user && password_verify($password, $user['password'])) {
         $_SESSION['user'] = $user;
-        if ($user['role'] === 'nhanvien') {
+        if ($user['role'] === 'admin') {
             header('Location: ../admin/dashboard.php');
         } else {
             header('Location: ../docgia/dashboard.php');

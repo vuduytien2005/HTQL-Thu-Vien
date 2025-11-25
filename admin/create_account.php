@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     echo "✅ Tạo tài khoản thành công!";
 }
 ?>
-
+<h3>Tạo tài khoản mới</h3>
 <form method="POST">
     <input type="text" name="username" placeholder="Tên đăng nhập" required>
     <input type="password" name="password" placeholder="Mật khẩu" required>

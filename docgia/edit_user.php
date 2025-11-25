@@ -1,11 +1,11 @@
 <?php
-include 'connnect.php';
-$id = $_GET['id'];
+include 'db.php';
+$Ma_doc_gia = $_GET['Ma_doc_gia'];
 $message = "";
 
 // Lấy thông tin hiện tại
-$stmt = $conn->prepare("SELECT * FROM account WHERE id=? AND role='user'");
-$stmt->bind_param("i",$id);
+$stmt = $conn->prepare("SELECT * FROM doc_gia WHERE Ma_doc_gia=? AND role='user'");
+$stmt->bind_param("i",$Ma_doc_gia);
 $stmt->execute();
 $result = $stmt->get_result();
 $user = $result->fetch_assoc();
@@ -20,11 +20,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if ($password != "") {
         $password = password_hash($password,PASSWORD_DEFAULT);
-        $stmt = $conn->prepare("UPDATE account SET username=?, email=?, password=? WHERE id=? AND role='user'");
-        $stmt->bind_param("sssi",$username,$email,$password,$id);
+        $stmt = $conn->prepare("UPDATE doc_gia SET username=?, email=?, password=? WHERE Ma_doc_gia=? AND role='user'");
+        $stmt->bind_param("sssi",$username,$email,$password,$Ma_doc_gia);
     } else {
-        $stmt = $conn->prepare("UPDATE account SET username=?, email=? WHERE id=? AND role='user'");
-        $stmt->bind_param("ssi",$username,$email,$id);
+        $stmt = $conn->prepare("UPDATE doc_gia SET username=?, email=? WHERE Ma_doc_gia=? AND role='user'");
+        $stmt->bind_param("ssi",$username,$email,$Ma_doc_gia);
     }
     $stmt->execute();
     $stmt->close();
