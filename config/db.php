@@ -1,6 +1,6 @@
 <?php
 $host = 'localhost';
-$port = '3307'; // nếu MySQL dùng cổng 3307
+$port = '3306'; // nếu MySQL dùng cổng 3307
 $dbname = 'library';
 $user = 'root';
 $pass = '';

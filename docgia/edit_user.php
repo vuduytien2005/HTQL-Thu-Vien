@@ -58,23 +58,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Chỉnh sửa thông tin cá nhân</title>
+    <title>Chỉnh sửa thông tin</title>
+
+    <!-- Link stylesheet dùng chung -->
+    <link rel="stylesheet" href="../assets/css/style.css">
 </head>
 <body>
-    <div>
-        <h1>✏️ Chỉnh sửa thông tin cá nhân</h1>
+
+<div class="container">
+
+    <!-- Thêm header nhỏ và nút logout để đồng bộ giao diện -->
+    <div class="header">
+        <h2>Chỉnh sửa thông tin</h2>
+        <a class="btn" href="../auth/logout.php">Đăng xuất</a>
+    </div>
+
+    <!-- Back link dùng class standard -->
+    <p class="back-link"><a href="dashboard.php">Quay lại trang chủ</a></p>
+
+    <div class="card-box">
+        <h1> Chỉnh sửa thông tin cá nhân</h1>
         
         <?php if (!empty($error)): ?>
-            <div><?php echo $error; ?></div>
+            <div class="message error"><?php echo $error; ?></div>
         <?php endif; ?>
         
         <?php if (!empty($success)): ?>
-            <div><?php echo $success; ?></div>
+            <div class="message success"><?php echo $success; ?></div>
         <?php endif; ?>
         
         <form method="POST">
@@ -132,11 +146,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             
             <br>
-            <button type="submit">💾 Cập nhật thông tin</button>
+            <button class="btn btn-primary" type="submit"> Cập nhật thông tin</button>
         </form>
-        
-        <br>
-        <a href="dashboard.php">⬅ Quay lại trang chủ</a>
     </div>
+
+</div>
+
 </body>
 </html>

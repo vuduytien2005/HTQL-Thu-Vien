@@ -17,14 +17,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
-<h3>Thêm nhà cung cấp mới</h3>
-<form method="post">
-    <p>
-        <label>Tên nhà cung cấp:</label><br>
-        <input type="text" name="ten_nha_cung_cap" required>
-    </p>
-    <p>
-        <button type="submit">Thêm nhà cung cấp</button>
-        <a href="add_book.php">Quay lại thêm sách</a>
-    </p>
-</form>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Thêm nhà cung cấp</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card-box">
+            <h3 style="margin-bottom: 20px; color: var(--primary);">Thêm nhà cung cấp mới</h3>
+            
+            <form method="post">
+                <label for="ten_nha_cung_cap">Tên nhà cung cấp</label>
+                <input id="ten_nha_cung_cap" type="text" name="ten_nha_cung_cap" required>
+                
+                <div style="margin-top:16px;">
+                    <button class="btn btn-primary" type="submit">Thêm nhà cung cấp</button>
+                    <a class="back-link" href="add_book.php" style="margin-left:12px;">Quay lại thêm sách</a>
+                </div>
+            </form>
+        </div>
+        
+        <div style="margin-top:16px;">
+            <a class="back-link" href="dashboard.php">← Quay về Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

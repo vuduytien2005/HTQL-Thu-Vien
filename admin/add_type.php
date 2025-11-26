@@ -23,41 +23,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
-<h3>Thêm thể loại mới</h3>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Thêm thể loại</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card-box">
+            <h3 style="margin-bottom: 20px; color: var(--primary);">Thêm thể loại mới</h3>
 
-<!-- Thông báo lỗi -->
-<?php if (isset($error)): ?>
-    <p style="color: red;">
-        <?php 
-        if (strpos($error, 'Duplicate entry') !== false) {
-            echo "Mã thể loại đã tồn tại. Xin vui lòng nhập mã khác.";
-        } else {
-            echo $error;
-        }
-        ?>
-    </p>
-<?php endif; ?>
+            <!-- Thông báo lỗi -->
+            <?php if (isset($error)): ?>
+                <div class="message error">
+                    <?php 
+                    if (strpos($error, 'Duplicate entry') !== false) {
+                        echo "❌ Mã thể loại đã tồn tại. Xin vui lòng nhập mã khác.";
+                    } else {
+                        echo htmlspecialchars($error);
+                    }
+                    ?>
+                </div>
+            <?php endif; ?>
 
-<form method="post">
-    <p>
-        <label>Mã thể loại:</label><br>
-        <input type="text" name="ma_the_loai" placeholder="VD: TL01, TL02..." required>
-    </p>
-    <p>
-        <label>Tên thể loại:</label><br>
-        <input type="text" name="ten_the_loai" placeholder="VD: Tiểu thuyết, Khoa học..." required>
-    </p>
-    <p>
-        <label>Mô tả:</label><br>
-        <textarea name="mo_ta" placeholder="Mô tả về thể loại..." rows="4" style="width: 300px;"></textarea>
-    </p>
-    <p>
-        <button type="submit">Thêm thể loại</button>
-        <a href="add_book.php">Quay lại thêm sách</a>
-    </p>
-</form>
+            <form method="post">
+                <label for="ma_the_loai">Mã thể loại</label>
+                <input id="ma_the_loai" type="text" name="ma_the_loai" placeholder="VD: TL01, TL02..." required>
 
-<!-- Nút quay về Dashboard -->
-<p>
-    <a href="/QLY_THUVIEN/HTQL-Thu-Vien/admin/dashboard.php">← Quay về Dashboard</a>
-</p>
+                <label for="ten_the_loai">Tên thể loại</label>
+                <input id="ten_the_loai" type="text" name="ten_the_loai" placeholder="VD: Tiểu thuyết, Khoa học..." required>
+
+                <label for="mo_ta">Mô tả</label>
+                <textarea id="mo_ta" name="mo_ta" placeholder="Mô tả về thể loại..." rows="4" style="width: 100%; max-width: 520px; padding: 12px; border-radius: 8px; border: 1px solid #e6eef8;"></textarea>
+
+                <div style="margin-top:16px;">
+                    <button class="btn btn-primary" type="submit">Thêm thể loại</button>
+                    <a class="back-link" href="add_book.php" style="margin-left:12px;">Quay lại thêm sách</a>
+                </div>
+            </form>
+        </div>
+
+        <div style="margin-top:16px;">
+            <a class="back-link" href="dashboard.php">← Quay về Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

@@ -6,7 +6,6 @@ if ($_SESSION['user']['role'] !== 'admin') {
     die("Bạn không có quyền truy cập.");
 }
 
-// Lấy tên quản trị viên đang đăng nhập
 $current_admin = $_SESSION['user']['username'] ?? 'Quản trị viên';
 ?>
 <!DOCTYPE html>
@@ -15,93 +14,124 @@ $current_admin = $_SESSION['user']['username'] ?? 'Quản trị viên';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản trị Thư viện</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
     <style>
-        body { font-family: Arial, sans-serif; }
-        .stats { display: flex; gap: 20px; margin: 20px 0; }
-        .card { border: 1px solid #ccc; border-radius: 8px; padding: 15px; text-align: center; flex: 1; }
-        .card p { margin: 0; font-weight: bold; }
-        .card h3 { margin: 5px 0 0; color: #007bff; }
+        .sidebar {
+            background: linear-gradient(135deg, rgba(16,109,177,0.95), rgba(14,165,169,0.95));
+            color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .sidebar h2 { margin: 0 0 8px; font-size: 1.3rem; }
+        .sidebar p { margin: 0; opacity: 0.9; }
+        .sidebar ul { list-style: none; margin-top: 16px; }
+        .sidebar ul li { margin-bottom: 8px; }
+        .sidebar ul li a { color: #fff; text-decoration: none; font-weight: 600; }
+        .sidebar ul li a:hover { text-decoration: underline; }
+        
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 20px 0; }
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: var(--card-shadow);
+        }
+        .stat-card p { margin: 0 0 10px; color: var(--muted); font-weight: 600; }
+        .stat-card h3 { margin: 0; color: var(--primary); font-size: 1.8rem; }
+        
+        .quick-actions { margin: 20px 0; }
+        .quick-actions a { 
+            display: inline-block;
+            padding: 10px 16px;
+            background: var(--primary);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .quick-actions a:hover { opacity: 0.9; }
+        
+        table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 6px; overflow: hidden; margin-top: 12px; }
+        th, td { padding: 12px; border-bottom: 1px solid #eef2f7; text-align: left; }
+        th { background: #fbfdff; color: var(--muted); font-weight: 700; }
+        td a { color: var(--primary); margin-right: 8px; }
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
-    <div>
-        <div>
-            <h2>Thư viện Admin</h2>
-            <p>Quản trị hệ thống</p>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h2> Quản trị Thư viện</h2>
+            <div class="sub">Chào mừng, <?= htmlspecialchars($current_admin) ?></div>
         </div>
-        <div>
-            <ul>
-                <li><a href="list_book.php">Quản lý Sách</a></li>
-                <li><a href="create_account.php">Tạo tài khoản</a></li>
-                <li><a href="list_account.php">Quản lý Tài khoản</a></li>
-                <li><a href="create_report.php">Tạo báo cáo</a></li>
-                <li><a href="list_report.php">Báo cáo & Thống kê</a></li>
-                <li><a href="../auth/logout.php">Đăng xuất</a></li>
-            </ul>
-        </div>
-    </div>
 
-    <!-- Main Content -->
-    <div>
-        <div>
-            <h1>Dashboard Quản trị</h1>
-            
-            <!-- Thông báo thành công -->
-            <?php if (isset($_GET['success'])): ?>
-                <div style="background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border: 1px solid #c3e6cb; border-radius: 5px;">
-                    ✅ <?php echo htmlspecialchars($_GET['success']); ?>
-                </div>
-            <?php endif; ?>
-            
-            <div>
-                <h4>Xin chào, <?= htmlspecialchars($current_admin) ?></h4>
-            </div>
+        <!-- Menu -->
+        <div class="menu">
+            <a href="list_book.php"> Quản lý Sách</a>
+            <a href="create_account.php"> Tạo tài khoản</a>
+            <a href="list_account.php"> Quản lý Tài khoản</a>
+            <a href="create_report.php"> Tạo báo cáo</a>
+            <a href="list_report.php"> Báo cáo & Thống kê</a>
+            <a href="../auth/logout.php"> Đăng xuất</a>
         </div>
+
+        <!-- Success Message -->
+        <?php if (isset($_GET['success'])): ?>
+            <div class="message success">
+                ✅ <?php echo htmlspecialchars($_GET['success']); ?>
+            </div>
+        <?php endif; ?>
 
         <!-- Stats Cards -->
         <div class="stats">
-            <div class="card">
+            <div class="stat-card">
                 <p>Tổng số quản trị viên</p>
                 <h3 id="total-admins">0</h3>
             </div>
-            <div class="card">
+            <div class="stat-card">
                 <p>Tổng số sách</p>
                 <h3 id="total-books">0</h3>
             </div>
-            <div class="card">
+            <div class="stat-card">
                 <p>Độc giả</p>
                 <h3 id="total-readers">0</h3>
             </div>
-            <div class="card">
+            <div class="stat-card">
                 <p>Lượt mượn sách</p>
                 <h3 id="total-borrows">0</h3>
             </div>
-            <div class="card">
+            <div class="stat-card">
                 <p>Tiền phạt (VNĐ)</p>
                 <h3 id="total-fines">0</h3>
             </div>
         </div>
 
         <!-- Quick Actions -->
-        <div>
-            <h2>Thao tác nhanh</h2>
-            <a href="add_book.php">Thêm sách mới</a> |
-            <a href="create_account.php">Tạo tài khoản</a> |
+        <div class="quick-actions">
+            <a href="add_book.php">Thêm sách mới</a>
+            <a href="create_account.php">Tạo tài khoản</a>
             <a href="create_report.php">Tạo báo cáo</a>
         </div>
 
         <!-- Recent Books -->
-        <div>
-            <h2>Sách mới thêm gần đây</h2>
-            <a href="list_book.php">Xem tất cả sách</a>
+        <div class="card-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0; color: var(--primary);"> Sách mới thêm gần đây</h3>
+                <a href="list_book.php" style="color: var(--primary);">Xem tất cả →</a>
+            </div>
             <div id="recent-books">Đang tải dữ liệu sách...</div>
         </div>
 
         <!-- Recent Reports -->
-        <div>
-            <h2>Báo cáo gần đây</h2>
-            <a href="list_report.php">Xem tất cả báo cáo</a>
+        <div class="card-box" style="margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0; color: var(--primary);"> Báo cáo gần đây</h3>
+                <a href="list_report.php" style="color: var(--primary);">Xem tất cả →</a>
+            </div>
             <div id="recent-reports">Đang tải dữ liệu báo cáo...</div>
         </div>
     </div>

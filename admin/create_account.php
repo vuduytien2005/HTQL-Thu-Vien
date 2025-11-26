@@ -20,31 +20,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
-<h3>Tạo tài khoản mới</h3>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Tạo tài khoản mới</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card-box">
+            <h3 style="margin-bottom: 20px; color: var(--primary);">Tạo tài khoản mới</h3>
 
-<!-- Thêm nút quay về Dashboard -->
-<p>
-    <a href="dashboard.php">← Quay về Dashboard</a>
-</p>
+            <form method="POST">
+                <label for="username">Tên đăng nhập</label>
+                <input id="username" type="text" name="username" placeholder="Tên đăng nhập" required>
 
-<form method="POST">
-    <p>
-        <label>Tên đăng nhập:</label><br>
-        <input type="text" name="username" placeholder="Tên đăng nhập" required>
-    </p>
-    <p>
-        <label>Mật khẩu:</label><br>
-        <input type="password" name="password" placeholder="Mật khẩu" required>
-    </p>
-    <p>
-        <label>Vai trò:</label><br>
-        <select name="role">
-            <option value="admin">Admin</option>
-            <option value="docgia">Độc giả</option>
-        </select>
-    </p>
-    <p>
-        <button type="submit">Tạo tài khoản</button>
-        <a href="dashboard.php">Hủy</a>
-    </p>
-</form>
+                <label for="password">Mật khẩu</label>
+                <input id="password" type="password" name="password" placeholder="Mật khẩu" required>
+
+                <label for="role">Vai trò</label>
+                <select id="role" name="role">
+                    <option value="admin">Admin</option>
+                    <option value="docgia">Độc giả</option>
+                </select>
+
+                <div style="margin-top:16px;">
+                    <button class="btn btn-primary" type="submit">Tạo tài khoản</button>
+                    <a class="back-link" href="dashboard.php" style="margin-left:12px;">Hủy</a>
+                </div>
+            </form>
+        </div>
+
+        <div style="margin-top:16px;">
+            <a class="back-link" href="dashboard.php">← Quay về Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

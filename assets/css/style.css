@@ -1,0 +1,429 @@
+/* Global layout + palette
+   Palette:
+   - Primary: #106db1 (deep blue)
+   - Accent: #0ea5a9 (teal)
+   - Danger: #e11d48 (red)
+   - Neutral bg: #f4f7fb
+*/
+
+:root {
+    --bg: #f4f7fb;
+    --text: #1f2937;
+    --primary: #106db1;
+    --accent: #0ea5a9;
+    --danger: #e11d48;
+    --muted: #6b7280;
+    --card-bg: #ffffff;
+    --card-shadow: 0 1px 6px rgba(16, 24, 40, 0.06);
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 20px auto;
+    padding: 0 16px;
+}
+
+/* Header */
+.header {
+    background: linear-gradient(135deg, rgba(16,109,177,0.95), rgba(14,165,169,0.95));
+    color: #fff;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 10px;
+}
+
+.header h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.header .sub { color: rgba(255,255,255,0.85); font-weight: 500; }
+
+/* Menu */
+.menu { display:flex; gap:10px; margin: 12px 0; align-items:center; }
+.menu a {
+    background: var(--card-bg);
+    color: var(--primary);
+    padding: 8px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    border: 1px solid #e6eef8;
+    font-weight: 600;
+}
+.menu a:hover { background: #eef6ff; }
+
+/* Card box */
+.card-box {
+    background: var(--card-bg);
+    padding: 16px;
+    border-radius: 10px;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 12px;
+}
+
+/* Buttons */
+.btn { padding: 8px 12px; border-radius: 8px; border: none; cursor: pointer; display:inline-block; text-decoration: none; font-weight: 600; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-secondary { background: #f3f4f6; color: var(--text); border: 1px solid #e6eef8; }
+.btn-danger { background: var(--danger); color: #fff; }
+
+/* Links */
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Forms */
+label { display:block; margin-bottom:6px; font-weight:600; }
+input[type="text"], input[type="password"], select {
+    padding: 12px;
+    font-size: 16px;
+    width: 100%;
+    max-width: 520px;
+    border-radius: 8px;
+    border: 1px solid #e6eef8;
+    background: #fff;
+}
+
+/* Back link */
+.back-link { display:inline-block; margin-bottom:12px; color: var(--muted); }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 6px; overflow: hidden; }
+th, td { padding: 10px 12px; border-bottom: 1px solid #eef2f7; text-align: left; vertical-align: middle; }
+th { background: #fbfdff; color: var(--muted); font-weight: 700; }
+
+/* Messages */
+.message {
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+.message.success { background: #e6ffed; color:#166534; border: 1px solid #b7f0c3; }
+.message.error { background: #fff4f4; color:#7f1d1d; border: 1px solid #f7c0c0; }
+
+/* Auth / login center - tăng kích thước một chút */
+.auth-center {
+    min-height: calc(100vh - 40px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 800px;
+    padding: 48px 40px;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    background: var(--card-bg);
+}
+
+.auth-title {
+    margin: 0 0 32px;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+/* Tăng kích thước input và button */
+input[type="text"], input[type="password"], select {
+    padding: 12px;
+    font-size: 16px; /* tăng font-size */
+    width: 100%;
+    max-width: 520px;
+    border-radius: 8px;
+    border: 1px solid #e6eef8;
+    background: #fff;
+}
+
+.btn {
+    padding: 12px 16px; /* tăng padding */
+    font-size: 15px; /* tăng font-size */
+    border-radius: 10px;
+}
+
+/* Auth small notes */
+.auth-note { color: var(--muted); margin-top: 8px; }
+
+/* Auth background & glass effect */
+.auth-bg {
+    /* gradient overlay + image (image path relative to this CSS file) */
+    background-image: linear-gradient(rgba(5, 30, 40, 0.35), rgba(5, 30, 40, 0.35)),;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ensure auth-card stands out (glass effect) */
+.auth-card {
+    background: rgba(255, 255, 255, 0.88);
+    border-radius: 12px;
+    padding: 48px 40px;
+    max-width: 800px;
+    width: 100%;
+    box-shadow: 0 8px 30px rgba(16, 24, 40, 0.18);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.45);
+}
+
+/* If you want a stronger overlay text color for dark background */
+.auth-card h2, .auth-card label, .auth-card p, .auth-card .auth-note {
+    color: var(--text);
+}
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .auth-card { max-width: 420px; padding: 18px; }
+    input[type="text"], input[type="password"], select { font-size: 15px; padding: 10px; }
+    .btn { padding: 11px 14px; font-size: 14px; }
+}
+
+/* Slight adjustments for smaller screens */
+@media (max-width: 480px) {
+    .auth-card { padding: 16px; max-width: 360px; }
+    .menu { flex-wrap: wrap; }
+    .header { padding: 12px; }
+    .container { padding: 12px; }
+}
+
+/* === DELETE BOOK CONFIRMATION STYLES === */
+.delete-bg {
+    background-image: linear-gradient(rgba(5, 30, 40, 0.35), rgba(5, 30, 40, 0.35)), url('https://4kwallpapers.com/images/walls/thumbs_3t/14889.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.delete-card {
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 12px;
+    padding: 40px;
+    max-width: 600px;
+    width: 100%;
+    box-shadow: 0 8px 30px rgba(16, 24, 40, 0.18);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.45);
+    text-align: center;
+}
+
+.delete-icon {
+    font-size: 3.5rem;
+    color: var(--danger);
+    margin-bottom: 20px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.delete-title {
+    color: var(--danger);
+    font-size: 1.6rem;
+    margin-bottom: 12px;
+    font-weight: 700;
+}
+
+.delete-subtitle {
+    color: var(--muted);
+    font-size: 1rem;
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+/* Book info section */
+.book-info {
+    background: #fbfdff;
+    border: 1px solid #e6eef8;
+    border-left: 4px solid var(--danger);
+    padding: 20px;
+    margin: 25px 0;
+    border-radius: 8px;
+    text-align: left;
+}
+
+.book-info h4 {
+    color: var(--danger);
+    margin-bottom: 16px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-bottom: 1px solid #eef2f7;
+    padding-bottom: 8px;
+}
+
+.book-detail {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.95rem;
+    padding: 4px 0;
+}
+
+.book-detail strong {
+    color: var(--text);
+    min-width: 120px;
+    font-weight: 600;
+}
+
+.book-detail span {
+    color: var(--muted);
+    text-align: right;
+    flex: 1;
+}
+
+/* Warning message */
+.warning-message {
+    background: #fff8f1;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 25px 0;
+    text-align: left;
+}
+
+.warning-message h4 {
+    color: #9a3412;
+    margin-bottom: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.warning-message ul {
+    margin-left: 20px;
+    color: #9a3412;
+}
+
+.warning-message li {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* Action buttons */
+.delete-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 30px;
+    flex-wrap: wrap;
+}
+
+.btn-lg {
+    padding: 12px 24px;
+    font-size: 1rem;
+    min-width: 140px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+/* Status badges */
+.book-status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+.status-available {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.status-unavailable {
+    background: #fecaca;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+
+/* Loading animation */
+.loading {
+    display: none;
+    margin-top: 20px;
+    text-align: center;
+}
+
+.loading-spinner {
+    border: 3px solid #f3f4f6;
+    border-top: 3px solid var(--danger);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .delete-card {
+        padding: 30px 20px;
+        margin: 20px;
+    }
+    
+    .delete-actions {
+        flex-direction: column;
+    }
+    
+    .btn-lg {
+        width: 100%;
+    }
+    
+    .book-detail {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .book-detail strong {
+        min-width: auto;
+    }
+    
+    .book-detail span {
+        text-align: left;
+    }
+}
+
+@media (max-width: 480px) {
+    .delete-card {
+        padding: 24px 16px;
+    }
+    
+    .delete-title {
+        font-size: 1.4rem;
+    }
+    
+    .delete-icon {
+        font-size: 3rem;
+    }
+}

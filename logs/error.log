@@ -1,0 +1,6 @@
+[2025-11-26 03:43:34] Borrow action failed for user=tuan, ma_sach=T01, exception=SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`library`.`phieu_muon`, CONSTRAINT `phieu_muon_ibfk_1` FOREIGN KEY (`Ma_doc_gia`) REFERENCES `doc_gia` (`Ma_doc_gia`)) | trace: #0 C:\xampp\htdocs\HTQL-Thu-Vien\HTQL-Thu-Vien\docgia\borrow_book.php(78): PDOStatement->execute(Array)
+#1 {main}
+[2025-11-26 03:48:49] Borrow action failed for user=tuan, ma_sach=T01, exception=SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'Ma_nhan_vien' cannot be null | trace: #0 C:\xampp\htdocs\HTQL-Thu-Vien\HTQL-Thu-Vien\docgia\borrow_book.php(78): PDOStatement->execute(Array)
+#1 {main}
+[2025-11-26 03:48:51] Borrow action failed for user=tuan, ma_sach=T01, exception=SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'Ma_nhan_vien' cannot be null | trace: #0 C:\xampp\htdocs\HTQL-Thu-Vien\HTQL-Thu-Vien\docgia\borrow_book.php(78): PDOStatement->execute(Array)
+#1 {main}

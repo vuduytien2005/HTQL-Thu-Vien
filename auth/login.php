@@ -18,30 +18,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ../docgia/dashboard.php');
         }
     } else {
-        $error = "❌ Sai tên đăng nhập hoặc mật khẩu.";
+        $errorMessage = "❌ Sai tên đăng nhập hoặc mật khẩu.";
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Đăng nhập hệ thống</title>
-    <link rel="stylesheet" href="../assets/style.css"> <!-- Đây là dòng cần thêm -->
-</head>
-<body>
-    <div class="container">
-        <h1>🔐 Đăng nhập</h1>
-        <?php if (!empty($error)) echo "<p style='color:red;'>$error</p>"; ?>
-        <form method="POST">
-            <input type="text" name="username" placeholder="Tên đăng nhập" required><br><br>
-            <input type="password" name="password" placeholder="Mật khẩu" required><br><br>
-            <button type="submit">Đăng nhập</button>
-        </form>
-        <br>
-        <a href="../index.php" class="button">⬅ Quay về trang chính</a>
+    <title>Đăng nhập</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
+        html, body {
+            width: 100%;
+            height: 100%;
+        }
+        
+        body.auth-bg {
+            background-image: url('https://4kwallpapers.com/images/walls/thumbs_3t/14889.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        
+        body.auth-bg::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .auth-center {
+            position: relative;
+            z-index: 2;
+        }
+    </style>
+</head>
+<body class="auth-bg">
+    <div class="auth-center">
+        <div class="auth-card">
+            <h2 class="auth-title">Đăng nhập</h2>
+
+            <!-- Hiển thị thông báo lỗi nếu có -->
+            <?php if (!empty($errorMessage)): ?>
+                <div class="message error"><?php echo htmlspecialchars($errorMessage); ?></div>
+            <?php endif; ?>
+
+            <form method="POST">
+                <label for="username">Tên đăng nhập</label>
+                <input id="username" type="text" name="username" required>
+
+                <label for="password">Mật khẩu</label>
+                <input id="password" type="password" name="password" required>
+
+                <div style="margin-top:16px;">
+                    <button class="btn btn-primary" type="submit">Đăng nhập</button>
+                    <a class="back-link" href="../index.php" style="margin-left:12px;">Quay lại trang chủ</a>
+                </div>
+            </form>
+
+            <!-- Optional small note -->
+            <p class="auth-note">Nhập thông tin của bạn để truy cập hệ thống.</p>
+        </div>
     </div>
+
 </body>
 </html>

@@ -53,53 +53,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <title>Đăng ký tài khoản độc giả</title>
-    <link rel="stylesheet" href="../assets/style.css">
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+        }
+        
+        body.auth-bg {
+            background-image: url('https://4kwallpapers.com/images/walls/thumbs_3t/911.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        
+        body.auth-bg::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .auth-center {
+            position: relative;
+            z-index: 2;
+        }
+    </style>
 </head>
-<body>
-    <div class="container">
-        <h1>🆕 Đăng ký tài khoản độc giả</h1>
-        
-        <?php
-        if (!empty($error)) echo "<p style='color:red;'>$error</p>";
-        if (!empty($success)) echo "<p style='color:green;'>$success</p>";
-        ?>
-        
-        <form method="POST">
-            <input type="text" name="username" placeholder="Tên đăng nhập" required><br><br>
+<body class="auth-bg">
+    <div class="auth-center">
+        <div class="auth-card">
+            <h2 class="auth-title">🆕 Đăng ký tài khoản độc giả</h2>
             
-            <input type="password" name="password" placeholder="Mật khẩu" required><br><br>
+            <?php
+            if (!empty($error)) echo "<div class='message error'>" . htmlspecialchars($error) . "</div>";
+            if (!empty($success)) echo "<div class='message success'>" . htmlspecialchars($success) . "</div>";
+            ?>
             
-            <input type="text" name="ho_ten" placeholder="Họ và tên" required><br><br>
-            
-            <!-- Dòng Ngày sinh -->
-            <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                <strong style="width: 100px;">Ngày sinh</strong>
-                <input type="date" name="ngay_sinh">
-            </div>
-            
-            <!-- Dòng Giới tính -->
-            <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                <strong style="width: 100px;">Giới tính</strong>
-                <select name="gioi_tinh">
+            <form method="POST">
+                <label for="username">Tên đăng nhập</label>
+                <input id="username" type="text" name="username" required>
+                
+                <label for="password">Mật khẩu</label>
+                <input id="password" type="password" name="password" required>
+                
+                <label for="ho_ten">Họ và tên</label>
+                <input id="ho_ten" type="text" name="ho_ten" required>
+                
+                <label for="ngay_sinh">Ngày sinh</label>
+                <input id="ngay_sinh" type="date" name="ngay_sinh">
+                
+                <label for="gioi_tinh">Giới tính</label>
+                <select id="gioi_tinh" name="gioi_tinh">
                     <option value="">-- Chọn giới tính --</option>
                     <option value="Nam">Nam</option>
                     <option value="Nữ">Nữ</option>
                     <option value="Khác">Khác</option>
                 </select>
-            </div>
-            
-            <input type="text" name="dia_chi" placeholder="Địa chỉ"><br><br>
-            
-            <input type="tel" name="sdt" placeholder="Số điện thoại"><br><br>
-            
-            <input type="email" name="email" placeholder="Email">
-            
-            <br><br>
-            <button type="submit">Đăng ký</button>
-        </form>
-        
-        <br>
-        <a href="login.php" class="button">⬅ Quay về đăng nhập</a>
+                
+                <label for="dia_chi">Địa chỉ</label>
+                <input id="dia_chi" type="text" name="dia_chi">
+                
+                <label for="sdt">Số điện thoại</label>
+                <input id="sdt" type="tel" name="sdt">
+                
+                <label for="email">Email</label>
+                <input id="email" type="email" name="email">
+                
+                <div style="margin-top:16px;">
+                    <button class="btn btn-primary" type="submit">Đăng ký</button>
+                    <a class="back-link" href="login.php" style="margin-left:12px;">⬅ Quay về đăng nhập</a>
+                </div>
+            </form>
+
+            <p class="auth-note">Tạo tài khoản để sử dụng dịch vụ thư viện.</p>
+        </div>
     </div>
+
 </body>
 </html>
