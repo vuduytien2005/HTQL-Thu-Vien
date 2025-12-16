@@ -17,14 +17,10 @@ if ($role !== 'admin' && $role !== 'docgia') {
 // Xác định nhanh nếu người dùng hiện tại là admin
 $isAdmin = ($role === 'admin');
 
-// Lấy danh sách sách kèm thể loại
+// Lấy danh sách sách - không cần JOIN vì thể loại đã có sẵn trong bảng SACH
 $stmt = $pdo->query("
-    SELECT s.*, 
-           GROUP_CONCAT(tl.Ten_the_loai SEPARATOR ', ') as Danh_sach_the_loai
+    SELECT s.*
     FROM SACH s
-    LEFT JOIN sach_the_loai stl ON s.Ma_sach = stl.Ma_sach
-    LEFT JOIN the_loai tl ON stl.Ma_the_loai = tl.Ma_the_loai
-    GROUP BY s.Ma_sach
     ORDER BY s.Ma_sach DESC
 ");
 $books = $stmt->fetchAll();
@@ -236,6 +232,15 @@ $books = $stmt->fetchAll();
             margin-bottom: 16px;
             opacity: 0.5;
         }
+        
+        .book-content {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
     </style>
 </head>
 <body>
@@ -244,7 +249,7 @@ $books = $stmt->fetchAll();
             <!-- Header -->
             <div class="page-header">
                 <div>
-                    <h1 class="page-title"> Danh sách Sách</h1>
+                    <h1 class="page-title">Danh sách Sách</h1>
                     <p class="sub" style="color: var(--muted); margin-top: 4px;">
                         Quản lý toàn bộ sách trong thư viện 
                         <?php if (!$isAdmin): ?>
@@ -253,38 +258,43 @@ $books = $stmt->fetchAll();
                     </p>
                 </div>
                 <div class="header-actions">
-                    <a href="../admin/dashboard.php" class="btn btn-secondary">← Dashboard</a>
+                    <a href="../admin/dashboard.php" class="btn btn-secondary">← Trang chủ</a>
                     <?php if ($isAdmin): ?>
-                        <a href="add_book.php" class="btn btn-primary"> Thêm sách mới</a>
+                        <a href="add_book.php" class="btn btn-primary">Thêm sách mới</a>
                     <?php endif; ?>
-                    <a href="../auth/logout.php" class="btn" style="background: var(--muted); color: white;"> Đăng xuất</a>
                 </div>
             </div>
 
             <!-- Thống kê nhanh -->
             <div class="stats-card">
-                <h3 style="margin-bottom: 16px; color: var(--text);"> Thống kê nhanh</h3>
+                <h3 style="margin-bottom: 16px; color: var(--text);">Thống kê nhanh</h3>
                 <div class="stats-grid">
                     <div class="stat-item">
-                        <span class="stat-number"><?= count($books) ?></span>
+                        <span class="stat-number"><?php echo count($books); ?></span>
                         <span class="stat-label">Tổng số sách</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-number">
-                            <?= count(array_filter($books, fn($book) => $book['Trang_thai'] === 'Còn')) ?>
+                            <?php echo count(array_filter($books, function($book) { return $book['Trang_thai'] === 'Còn'; })); ?>
                         </span>
                         <span class="stat-label">Sách có sẵn</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-number">
-                            <?= count(array_filter($books, fn($book) => $book['Trang_thai'] === 'Hết')) ?>
+                            <?php echo count(array_filter($books, function($book) { return $book['Trang_thai'] === 'Hết'; })); ?>
                         </span>
                         <span class="stat-label">Sách đã hết</span>
                     </div>
                     <?php if ($isAdmin): ?>
                     <div class="stat-item">
                         <span class="stat-number">
-                            <?= array_sum(array_column($books, 'So_ban')) ?>
+                            <?php 
+                            $totalCopies = 0;
+                            foreach ($books as $book) {
+                                $totalCopies += (int)$book['So_ban'];
+                            }
+                            echo $totalCopies;
+                            ?>
                         </span>
                         <span class="stat-label">Tổng số bản</span>
                     </div>
@@ -299,6 +309,7 @@ $books = $stmt->fetchAll();
                         <tr>
                             <th>Mã sách</th>
                             <th>Thông tin sách</th>
+                            <th>Nội dung</th>
                             <th>Thể loại</th>
                             <th>Nhà xuất bản</th>
                             <th>Số lượng</th>
@@ -310,67 +321,76 @@ $books = $stmt->fetchAll();
                         <?php foreach ($books as $book): ?>
                             <tr>
                                 <td>
-                                    <strong style="color: var(--primary);"><?= htmlspecialchars($book['Ma_sach']) ?></strong>
+                                    <strong style="color: var(--primary);"><?php echo htmlspecialchars($book['Ma_sach']); ?></strong>
                                 </td>
                                 <td>
-                                    <div class="book-title"><?= htmlspecialchars($book['Ten_sach']) ?></div>
-                                    <div class="book-author"> <?= htmlspecialchars($book['Ten_tac_gia']) ?></div>
+                                    <div class="book-title"><?php echo htmlspecialchars($book['Ten_sach']); ?></div>
+                                    <div class="book-author"><?php echo htmlspecialchars($book['Ten_tac_gia']); ?></div>
                                 </td>
                                 <td>
-                                    <?php if (!empty($book['Danh_sach_the_loai'])): ?>
+                                    <div class="book-content" title="<?php echo htmlspecialchars($book['Noi_dung']); ?>">
+                                        <?php 
+                                        $content = $book['Noi_dung'];
+                                        if (strlen($content) > 50) {
+                                            echo htmlspecialchars(substr($content, 0, 50)) . '...';
+                                        } else {
+                                            echo htmlspecialchars($content);
+                                        }
+                                        ?>
+                                    </div>
+                                </td>
+                                <td>
+                                    <?php if (!empty($book['Ten_the_loai'])): ?>
                                         <div class="categories-list">
-                                             <?= htmlspecialchars($book['Danh_sach_the_loai']) ?>
+                                            <?php echo htmlspecialchars($book['Ten_the_loai']); ?>
                                         </div>
                                     <?php else: ?>
                                         <span style="color: var(--muted); font-size: 0.85rem;">Chưa phân loại</span>
                                     <?php endif; ?>
                                 </td>
-                                <td><?= htmlspecialchars($book['Nha_xuat_ban']) ?></td>
+                                <td><?php echo htmlspecialchars($book['Nha_xuat_ban']); ?></td>
                                 <td>
-                                    <strong style="color: var(--primary);"><?= $book['So_ban'] ?></strong>
+                                    <strong style="color: var(--primary);"><?php echo $book['So_ban']; ?></strong>
                                     <?php if ($isAdmin && $book['So_ban'] <= 2): ?>
                                         <br><small style="color: var(--danger);">⚠️ Sắp hết</small>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <span class="book-status <?= $book['Trang_thai'] === 'Còn' ? 'status-available' : 'status-unavailable' ?>">
-                                        <?= $book['Trang_thai'] === 'Còn' ? ' Có sẵn' : ' Đã hết' ?>
+                                    <span class="book-status <?php echo $book['Trang_thai'] === 'Còn' ? 'status-available' : 'status-unavailable'; ?>">
+                                        <?php echo $book['Trang_thai'] === 'Còn' ? 'Có sẵn' : 'Đã hết'; ?>
                                     </span>
                                 </td>
                                 <td>
-                                    <div class="action-buttons">
-                                        <a href="view_book.php?ma_sach=<?= urlencode($book['Ma_sach']) ?>" 
-                                           class="btn-sm btn-view" title="Xem chi tiết">
-                                            Xem
-                                        </a>
-                                        <?php if ($isAdmin): ?>
-                                            <a href="update_book.php?ma_sach=<?= urlencode($book['Ma_sach']) ?>" 
-                                               class="btn-sm btn-edit" title="Sửa thông tin">
-                                                Sửa
-                                            </a>
-                                            <a href="delete_book.php?ma_sach=<?= urlencode($book['Ma_sach']) ?>" 
-                                               class="btn-sm btn-delete" 
-                                               onclick="return confirm('Bạn có chắc chắn muốn xóa sách \"<?= addslashes($book['Ten_sach']) ?>\"?')"
-                                               title="Xóa sách">
-                                               Xóa
-                                            </a>
-                                        <?php else: ?>
-                                            <span style="color: var(--muted); font-size: 0.8rem;">Chỉ xem</span>
-                                        <?php endif; ?>
-                                    </div>
+                                 <div class="action-buttons">
+                                  <?php if ($isAdmin): ?>
+                                      <a href="update_book.php?ma_sach=<?php echo urlencode($book['Ma_sach']); ?>" 
+                                         class="btn-sm btn-edit" title="Sửa thông tin">
+                                         Sửa
+                                     </a>
+                                      <a href="delete_book.php?ma_sach=<?php echo urlencode($book['Ma_sach']); ?>" 
+                                         class="btn-sm btn-delete" 
+                                         onclick="return confirm('Bạn có chắc chắn muốn xóa sách \'<?php echo htmlspecialchars(addslashes($book['Ten_sach']), ENT_QUOTES); ?>\'?')"
+                                         title="Xóa sách">
+                                         Xóa
+                                     </a>
+                                 <?php else: ?>
+                                     <span style="color: var(--muted); font-size: 0.8rem;">Chỉ xem</span>
+                                     <?php endif; ?>
+                                 </div>
                                 </td>
+                                
                             </tr>
                         <?php endforeach; ?>
 
                         <?php if (empty($books)): ?>
                             <tr>
-                                <td colspan="7">
+                                <td colspan="8">
                                     <div class="empty-state">
-                                        <div class="empty-state-icon"></div>
+                                        <div class="empty-state-icon">📚</div>
                                         <h3 style="color: var(--muted); margin-bottom: 8px;">Không có sách nào</h3>
                                         <p style="color: var(--muted); margin-bottom: 16px;">Thư viện hiện chưa có sách nào trong hệ thống.</p>
                                         <?php if ($isAdmin): ?>
-                                            <a href="add_book.php" class="btn btn-primary"> Thêm sách đầu tiên</a>
+                                            <a href="add_book.php" class="btn btn-primary">Thêm sách đầu tiên</a>
                                         <?php endif; ?>
                                     </div>
                                 </td>

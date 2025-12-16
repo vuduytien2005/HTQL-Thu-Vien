@@ -51,10 +51,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </form>
         </div>
-
-        <div style="margin-top:16px;">
-            <a class="back-link" href="dashboard.php">← Quay về Dashboard</a>
-        </div>
     </div>
 </body>
 </html>

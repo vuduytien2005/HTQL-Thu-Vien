@@ -1,10 +1,125 @@
+<?php
+session_start();
+require '../config/db.php';
+
+// Kiểm tra đăng nhập và role
+if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'docgia') {
+    header('Location: ../auth/login.php');
+    exit();
+}
+
+$user = $_SESSION['user'];
+$username = $user['username'];
+
+// Lấy thông tin độc giả từ bảng DOC_GIA
+$stmt = $pdo->prepare("SELECT * FROM DOC_GIA WHERE Ma_doc_gia = ?");
+$stmt->execute([$username]);
+$doc_gia = $stmt->fetch();
+
+// Nếu chưa có thông tin, tạo mới
+if (!$doc_gia) {
+    $stmt = $pdo->prepare("INSERT INTO DOC_GIA (Ma_doc_gia, Ho_ten, Email) VALUES (?, ?, ?)");
+    $stmt->execute([$username, $username, $user['email'] ?? '']);
+    
+    $stmt = $pdo->prepare("SELECT * FROM DOC_GIA WHERE Ma_doc_gia = ?");
+    $stmt->execute([$username]);
+    $doc_gia = $stmt->fetch();
+}
+
+// Xử lý tìm kiếm sách
+$search_results = [];
+$search_query = '';
+$has_search = false;
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['search']) && !empty(trim($_GET['search']))) {
+    $search_query = trim($_GET['search']);
+    $has_search = true;
+    
+    // Tìm kiếm sách theo tên, tác giả, thể loại
+    $search_term = '%' . $search_query . '%';
+    $stmt = $pdo->prepare("
+        SELECT * FROM SACH 
+        WHERE (Ten_sach LIKE ? 
+               OR Ten_tac_gia LIKE ? 
+               OR Ten_the_loai LIKE ?
+               OR Ma_sach LIKE ?)
+        ORDER BY Ten_sach
+        LIMIT 20
+    ");
+    $stmt->execute([$search_term, $search_term, $search_term, $search_term]);
+    $search_results = $stmt->fetchAll();
+}
+
+// Thống kê sách đang mượn
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM PHIEU_MUON WHERE Ma_doc_gia = ? AND Trang_thai = 'Đang mượn'");
+$stmt->execute([$username]);
+$borrowing_count = $stmt->fetch()['count'];
+
+// Thống kê sách sắp hết hạn
+$stmt = $pdo->prepare("
+    SELECT COUNT(DISTINCT p.Ma_phieu_muon) as count 
+    FROM PHIEU_MUON p
+    JOIN CHI_TIET_MUON c ON p.Ma_phieu_muon = c.Ma_phieu_muon
+    WHERE p.Ma_doc_gia = ? 
+    AND p.Trang_thai = 'Đang mượn'
+    AND DATEDIFF(p.Ngay_hen_tra, CURDATE()) <= 2
+    AND DATEDIFF(p.Ngay_hen_tra, CURDATE()) >= 0
+");
+$stmt->execute([$username]);
+$due_soon_count = $stmt->fetch()['count'];
+
+// Thống kê sách quá hạn
+$stmt = $pdo->prepare("
+    SELECT COUNT(DISTINCT p.Ma_phieu_muon) as count 
+    FROM PHIEU_MUON p
+    JOIN CHI_TIET_MUON c ON p.Ma_phieu_muon = c.Ma_phieu_muon
+    WHERE p.Ma_doc_gia = ? 
+    AND p.Trang_thai = 'Đang mượn'
+    AND DATEDIFF(p.Ngay_hen_tra, CURDATE()) < 0
+");
+$stmt->execute([$username]);
+$overdue_count = $stmt->fetch()['count'];
+
+// Thống kê sách trong giỏ
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM gio_muon_tam WHERE Ma_doc_gia = ?");
+$stmt->execute([$username]);
+$cart_count = $stmt->fetch()['count'];
+
+// Lấy sách đề xuất (sách còn sẵn)
+$recommended_books = [];
+try {
+    $stmt = $pdo->query("SELECT * FROM SACH WHERE Trang_thai = 'Còn' AND (So_ban - So_ban_dang_muon) > 0 ORDER BY RAND() LIMIT 6");
+    $recommended_books = $stmt->fetchAll();
+} catch (Exception $e) {
+    $recommended_books = [];
+}
+
+// Hàm lấy chữ cái đầu cho avatar
+function getAvatarInitials($name) {
+    if (empty($name)) return 'DG';
+    
+    $names = explode(' ', $name);
+    $initials = '';
+    
+    if (count($names) >= 2) {
+        $initials = strtoupper(substr($names[0], 0, 1) . substr($names[count($names)-1], 0, 1));
+    } else {
+        $initials = strtoupper(substr($name, 0, 2));
+    }
+    
+    return $initials;
+}
+
+$userFullName = $doc_gia['Ho_ten'] ?? $username;
+$avatarInitials = getAvatarInitials($userFullName);
+?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thư viện Sách Trực tuyến</title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <title>Thư viện Sách - Bảng điều khiển Độc giả</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -72,6 +187,9 @@
             font-weight: 500;
             transition: color 0.3s;
             position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .nav-links a:hover {
@@ -93,41 +211,17 @@
             width: 100%;
         }
         
-        .auth-buttons {
+        .cart-badge {
+            background: #ff6b6b;
+            color: white;
+            font-size: 0.8rem;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
             display: flex;
-            gap: 15px;
             align-items: center;
-        }
-        
-        .auth-btn {
-            padding: 10px 25px;
-            border-radius: 50px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.3s;
-            border: 2px solid transparent;
-        }
-        
-        .login-btn {
-            background-color: transparent;
-            color: #1a2980;
-            border-color: #1a2980;
-        }
-        
-        .login-btn:hover {
-            background-color: #1a2980;
-            color: white;
-        }
-        
-        .register-btn {
-            background-color: #26d0ce;
-            color: white;
-        }
-        
-        .register-btn:hover {
-            background-color: #1fb4b2;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(38, 208, 206, 0.3);
+            justify-content: center;
+            font-weight: bold;
         }
         
         /* User Avatar & Dropdown */
@@ -156,12 +250,6 @@
             transform: scale(1.05);
             border-color: #26d0ce;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-        
-        .avatar-circle img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
         }
         
         .avatar-circle .avatar-initials {
@@ -265,7 +353,7 @@
         .hero {
             padding: 150px 20px 80px;
             background: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8)), 
-                        url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80');
+                        url('https://images.unsplash.com/photo-1481627834876-b7833e8f5570?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80');
             background-size: cover;
             background-position: center;
             text-align: center;
@@ -297,6 +385,7 @@
         
         .search-box form {
             display: flex;
+            gap: 0;
         }
         
         .search-box input {
@@ -382,8 +471,8 @@
             margin-bottom: 20px;
         }
         
-        /* Features Section */
-        .features-section {
+        /* Stats Section */
+        .stats-section {
             padding: 80px 20px;
             background-color: #f8f9fa;
         }
@@ -406,7 +495,78 @@
             margin: 0 auto;
         }
         
-        .features-container {
+        .stats-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+        }
+        
+        .stat-card {
+            background-color: white;
+            border-radius: 12px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s;
+            border-left: 5px solid #26d0ce;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stat-card.overdue {
+            border-left-color: #ff6b6b;
+        }
+        
+        .stat-card.warning {
+            border-left-color: #ffc107;
+        }
+        
+        .stat-card.cart {
+            border-left-color: #6f42c1;
+        }
+        
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 25px;
+            display: block;
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #1a2980;
+            margin: 10px 0;
+        }
+        
+        .stat-card.overdue .stat-number {
+            color: #ff6b6b;
+        }
+        
+        .stat-card.warning .stat-number {
+            color: #ffc107;
+        }
+        
+        .stat-card.cart .stat-number {
+            color: #6f42c1;
+        }
+        
+        .stat-card p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        /* Quick Actions Section */
+        .quick-actions-section {
+            padding: 80px 20px;
+            background-color: white;
+        }
+        
+        .actions-container {
             max-width: 1200px;
             margin: 0 auto;
             display: grid;
@@ -414,42 +574,60 @@
             gap: 30px;
         }
         
-        .feature-card {
-            background-color: white;
+        .action-card {
+            background-color: #f8f9fa;
             border-radius: 12px;
             padding: 40px 30px;
             text-align: center;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
             transition: all 0.3s;
+            border: 2px solid transparent;
         }
         
-        .feature-card:hover {
+        .action-card:hover {
             transform: translateY(-10px);
             box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+            border-color: #26d0ce;
         }
         
-        .feature-icon {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #1a2980, #26d0ce);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 25px;
-            color: white;
-            font-size: 2rem;
+        .action-icon {
+            font-size: 3rem;
+            margin-bottom: 25px;
+            display: block;
+            color: #1a2980;
         }
         
-        .feature-card h3 {
+        .action-card h3 {
             font-size: 1.5rem;
             margin-bottom: 15px;
             color: #1a2980;
         }
         
-        .feature-card p {
+        .action-card p {
             color: #666;
             line-height: 1.7;
+            margin-bottom: 20px;
+        }
+        
+        .action-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #1a2980, #26d0ce);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(26, 41, 128, 0.3);
+            border-color: white;
         }
         
         /* Books Section */
@@ -481,21 +659,6 @@
             transform: translateY(-10px);
             box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
             text-decoration: none;
-        }
-        
-        .book-cover {
-            height: 180px;
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        
-        .book-cover i {
-            font-size: 4rem;
-            color: #1a2980;
-            opacity: 0.7;
         }
         
         .book-info {
@@ -541,6 +704,31 @@
         .status-unavailable {
             background: rgba(255, 107, 107, 0.1);
             color: #ff6b6b;
+        }
+        
+        /* Alert Section */
+        .alert-section {
+            padding: 80px 20px;
+            background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+            color: white;
+            text-align: center;
+        }
+        
+        .alert-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .alert-section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .alert-section p {
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+            opacity: 0.9;
+            line-height: 1.8;
         }
         
         /* Call to Action */
@@ -608,17 +796,6 @@
             transform: translateY(-3px);
         }
         
-        .cta-btn.admin {
-            background-color: #ff6b6b;
-            color: white;
-        }
-        
-        .cta-btn.admin:hover {
-            background-color: #ff5252;
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(255, 107, 107, 0.3);
-        }
-        
         /* Footer */
         footer {
             background-color: #0c1127;
@@ -679,6 +856,26 @@
             font-size: 0.9rem;
         }
         
+        /* Message Styles */
+        .message {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
         /* Responsive Design */
         @media (max-width: 768px) {
             .nav-container {
@@ -691,10 +888,6 @@
                 flex-wrap: wrap;
                 justify-content: center;
                 gap: 15px;
-            }
-            
-            .auth-buttons {
-                order: 3;
             }
             
             .hero h1 {
@@ -721,7 +914,8 @@
                 width: auto;
             }
             
-            .features-container,
+            .stats-container,
+            .actions-container,
             .books-container {
                 grid-template-columns: 1fr;
             }
@@ -738,17 +932,6 @@
         }
         
         @media (max-width: 576px) {
-            .auth-buttons {
-                flex-direction: column;
-                width: 100%;
-                max-width: 300px;
-            }
-            
-            .auth-btn {
-                width: 100%;
-                text-align: center;
-            }
-            
             .hero {
                 padding: 130px 15px 60px;
             }
@@ -761,8 +944,8 @@
                 font-size: 2rem;
             }
             
-            .feature-card,
-            .book-card {
+            .stat-card,
+            .action-card {
                 padding: 30px 20px;
             }
             
@@ -775,183 +958,58 @@
                 padding: 15px 20px;
             }
         }
-        
-        /* Message Styles */
-        .message {
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-        
-        .message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
     </style>
 </head>
 <body>
-    <?php
-    // Bắt đầu session
-    session_start();
-    
-    // Kết nối database
-    require 'config/db.php';
-
-    // Hàm lấy chữ cái đầu của tên để làm avatar
-    function getAvatarInitials($name) {
-        if (empty($name)) return 'US';
-        
-        $names = explode(' ', $name);
-        $initials = '';
-        
-        if (count($names) >= 2) {
-            $initials = strtoupper(substr($names[0], 0, 1) . substr($names[count($names)-1], 0, 1));
-        } else {
-            $initials = strtoupper(substr($name, 0, 2));
-        }
-        
-        return $initials;
-    }
-
-    // Kiểm tra xem người dùng đã đăng nhập chưa
-    $isLoggedIn = false;
-    $userName = '';
-    $userFullName = '';
-    $userRole = '';
-    $userId = '';
-    $userEmail = '';
-
-    if (isset($_SESSION['user'])) {
-        $user = $_SESSION['user'];
-        $isLoggedIn = true;
-        
-        // Lấy thông tin từ session
-        $userId = $user['id'] ?? '';
-        $userName = $user['username'] ?? 'Người dùng';
-        $userFullName = $user['full_name'] ?? $user['username'] ?? 'Người dùng';
-        $userRole = $user['role'] ?? 'user';
-        $userEmail = $user['email'] ?? '';
-    }
-
-    // Tạo avatar initials
-    $avatarInitials = $isLoggedIn ? getAvatarInitials($userFullName) : '';
-    
-    // Xử lý tìm kiếm sách
-    $search_results = [];
-    $search_query = '';
-    $has_search = false;
-    
-    if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['search']) && !empty(trim($_GET['search']))) {
-        $search_query = trim($_GET['search']);
-        $has_search = true;
-        
-        // Tìm kiếm sách theo tên, tác giả, thể loại
-        $search_term = '%' . $search_query . '%';
-        try {
-            $stmt = $pdo->prepare("
-                SELECT * FROM SACH 
-                WHERE (Ten_sach LIKE ? 
-                       OR Ten_tac_gia LIKE ? 
-                       OR Ten_the_loai LIKE ?
-                       OR Ma_sach LIKE ?)
-                ORDER BY Ten_sach
-                LIMIT 20
-            ");
-            $stmt->execute([$search_term, $search_term, $search_term, $search_term]);
-            $search_results = $stmt->fetchAll();
-        } catch (Exception $e) {
-            $search_results = [];
-        }
-    }
-    
-    // Lấy sách đề xuất (sách còn sẵn)
-    $recommended_books = [];
-    try {
-        $stmt = $pdo->query("SELECT * FROM SACH WHERE Trang_thai = 'Còn' AND (So_ban - So_ban_dang_muon) > 0 ORDER BY RAND() LIMIT 8");
-        $recommended_books = $stmt->fetchAll();
-    } catch (Exception $e) {
-        $recommended_books = [];
-    }
-    
-    // Hiển thị thông báo nếu có
-    $message = '';
-    $messageType = '';
-    
-    if (isset($_GET['message'])) {
-        $message = $_GET['message'];
-        $messageType = isset($_GET['type']) ? $_GET['type'] : 'success';
-    }
-    ?>
-    
     <!-- Header & Navigation -->
     <header>
         <div class="nav-container">
             <a href="index.php" class="logo">
-                <i class="fas fa-book-open"></i>
                 <span>Thư viện Sách</span>
             </a>
             
             <div class="nav-links">
-                <a href="#home">Trang chủ</a>
-                <a href="#books">Sách</a>
+                <a href="index.php#home">Trang chủ</a>
+                <a href="index.php#books">Sách</a>
+                <a href="cart.php">
+                    Giỏ mượn
+                    <?php if ($cart_count > 0): ?>
+                    <span class="cart-badge"><?php echo $cart_count; ?></span>
+                    <?php endif; ?>
+                </a>
+                <a href="my_borrows.php">
+                  Sách đang mượn
+                </a>
+                <a href="edit_user.php">Hồ sơ</a>
             </div>
             
-            <!-- Auth Buttons Nằm RIÊNG NGOÀI nav-links -->
-            <div class="auth-buttons">
-                <?php if($isLoggedIn): ?>
-                    <!-- Hiển thị avatar và dropdown menu khi đã đăng nhập -->
-                    <div class="user-avatar">
-                        <div class="avatar-circle">
-                            <span class="avatar-initials"><?php echo $avatarInitials; ?></span>
+            <!-- User Avatar -->
+            <div class="user-avatar">
+                <div class="avatar-circle">
+                    <span class="avatar-initials"><?php echo $avatarInitials; ?></span>
+                </div>
+                
+                <div class="user-dropdown">
+                    <div class="user-info">
+                        <div class="user-info-avatar">
+                            <span><?php echo $avatarInitials; ?></span>
                         </div>
-                        
-                        <div class="user-dropdown">
-                            <div class="user-info">
-                                <div class="user-info-avatar">
-                                    <span><?php echo $avatarInitials; ?></span>
-                                </div>
-                                <div class="user-details">
-                                    <h4><?php echo htmlspecialchars($userFullName); ?></h4>
-                                    <p><?php echo htmlspecialchars(ucfirst($userRole)); ?></p>
-                                </div>
-                            </div>
-                            
-                            <ul class="dropdown-menu">
-                                <?php if($userRole == 'admin'): ?>
-                                    <li><a href="admin/dashboard.php"><i class="fas fa-cog"></i> Quản trị hệ thống</a></li>
-                                    <li><a href="admin/add_book.php"><i class="fas fa-plus-circle"></i> Thêm sách mới</a></li>
-                                    <div class="dropdown-divider"></div>
-                                <?php endif; ?>
-                                
-                                <?php if($userRole == 'docgia'): ?>
-                                    <li><a href="docgia/dashboard.php"><i class="fas fa-tachometer-alt"></i> Bảng điều khiển</a></li>
-                                    <li><a href="docgia/profile.php"><i class="fas fa-user"></i> Thông tin cá nhân</a></li>
-                                    <li><a href="docgia/my_books.php"><i class="fas fa-book"></i> Sách của tôi</a></li>
-                                    <li><a href="docgia/reading_history.php"><i class="fas fa-history"></i> Lịch sử đọc</a></li>
-                                    <div class="dropdown-divider"></div>
-                                <?php endif; ?>
-                                
-                                <li><a href="auth/logout.php"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a></li>
-                            </ul>
+                        <div class="user-details">
+                            <h4><?php echo htmlspecialchars($userFullName); ?></h4>
+                            <p>Độc giả</p>
                         </div>
                     </div>
-                <?php else: ?>
-                    <!-- Hiển thị nút đăng nhập/đăng ký khi chưa đăng nhập -->
-                    <a href="auth/login.php" class="auth-btn login-btn">
-                        <i class="fas fa-sign-in-alt"></i> Đăng nhập
-                    </a>
-                    <a href="auth/register.php" class="auth-btn register-btn">
-                        <i class="fas fa-user-plus"></i> Đăng ký
-                    </a>
-                <?php endif; ?>
+                    
+                    <ul class="dropdown-menu">
+                        <li><a href="my_borrows.php"> Sách đang mượn</a></li>
+                        <li><a href="cart.php"> Giỏ mượn</a></li>
+                        <li><a href="borrow_history.php"> Lịch sử mượn</a></li>
+                        <div class="dropdown-divider"></div>
+                        <li><a href="edit_user.php"> Thông tin cá nhân</a></li>
+                        <div class="dropdown-divider"></div>
+                        <li><a href="../auth/logout.php"> Đăng xuất</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
     </header>
@@ -959,14 +1017,8 @@
     <!-- Hero Section -->
     <section class="hero" id="home">
         <div class="hero-content">
-            <h1>Khám phá thế giới tri thức qua từng trang sách</h1>
-            <p>Thư viện trực tuyến với hàng nghìn đầu sách đa dạng thể loại. Đọc thử miễn phí và đăng ký để truy cập toàn bộ nội dung.</p>
-            
-            <?php if(!empty($message)): ?>
-                <div class="message <?php echo $messageType; ?>">
-                    <?php echo htmlspecialchars($message); ?>
-                </div>
-            <?php endif; ?>
+            <h1>Chào mừng <?php echo htmlspecialchars($doc_gia['Ho_ten'] ?? $username); ?> đến Thư viện Sách!</h1>
+            <p>Khám phá thế giới tri thức với hàng nghìn đầu sách đa dạng</p>
             
             <div class="search-box">
                 <form method="GET" action="">
@@ -998,10 +1050,7 @@
                     $so_ban_con = $book['So_ban'] - $book['So_ban_dang_muon'];
                     $co_the_muon = ($book['Trang_thai'] === 'Còn') && ($so_ban_con > 0);
                 ?>
-                <a href="view_book_public.php?id=<?php echo urlencode($book['Ma_sach']); ?>" class="book-card">
-                    <div class="book-cover">
-                        <i class="fas fa-book"></i>
-                    </div>
+                <a href="view_book.php?id=<?php echo urlencode($book['Ma_sach']); ?>" class="book-card">
                     <div class="book-info">
                         <div class="book-title">
                             <?php echo htmlspecialchars($book['Ten_sach']); ?>
@@ -1030,8 +1079,31 @@
                 <i class="fas fa-search"></i>
                 <h3>Không tìm thấy kết quả phù hợp</h3>
                 <p>Hãy thử với từ khóa khác hoặc tìm kiếm ít cụ thể hơn</p>
+                </a>
             </div>
             <?php endif; ?>
+        </div>
+    </section>
+    <?php endif; ?>
+    <!-- Alert Section (nếu có sách quá hạn) -->
+    <?php if ($overdue_count > 0): ?>
+    <section class="alert-section">
+        <div class="alert-content">
+            <h2><i class="fas fa-exclamation-triangle"></i> Cảnh báo!</h2>
+            <p>Bạn có <strong><?php echo $overdue_count; ?> phiếu mượn</strong> đã quá hạn trả. Vui lòng liên hệ thư viện để trả sách và tránh bị phạt.</p>
+            <a href="my_borrows.php" class="cta-btn secondary" style="background: white; color: #ff6b6b;">
+                <i class="fas fa-book"></i> Kiểm tra ngay
+            </a>
+        </div>
+    </section>
+    <?php elseif ($due_soon_count > 0): ?>
+    <section class="alert-section" style="background: linear-gradient(135deg, #ffc107, #ffd54f);">
+        <div class="alert-content">
+            <h2><i class="fas fa-clock"></i> Lưu ý!</h2>
+            <p>Bạn có <strong><?php echo $due_soon_count; ?> phiếu mượn</strong> sắp hết hạn. Vui lòng kiểm tra và trả sách đúng hạn.</p>
+            <a href="my_borrows.php" class="cta-btn secondary" style="background: white; color: #ffc107;">
+                <i class="fas fa-book"></i> Kiểm tra ngay
+            </a>
         </div>
     </section>
     <?php endif; ?>
@@ -1040,16 +1112,16 @@
     <section class="books-section" id="books">
         <div class="section-title">
             <h2>Sách đang có trong hệ thống thư viện</h2>
-            <p>Khám phá những cuốn sách mới và thú vị trong thư viện của chúng tôi</p>
+            <p>Khám phá những cuốn sách mới và thú vị</p>
         </div>
-        
+    
         <div class="books-container">
             <?php if (!empty($recommended_books)): ?>
                 <?php foreach ($recommended_books as $book): 
                     $so_ban_con = $book['So_ban'] - $book['So_ban_dang_muon'];
                     $co_the_muon = ($book['Trang_thai'] === 'Còn') && ($so_ban_con > 0);
                 ?>
-                <a href="view_book_public.php?id=<?php echo urlencode($book['Ma_sach']); ?>" class="book-card">
+                <a href="view_book.php?id=<?php echo urlencode($book['Ma_sach']); ?>" class="book-card">
                     <div class="book-info">
                         <div class="book-title">
                             <?php echo htmlspecialchars($book['Ten_sach']); ?>
@@ -1079,10 +1151,10 @@
                 </div>
             <?php endif; ?>
         </div>
+
     </section>
-    
     <!-- Footer -->
-    <footer id="contact">
+    <footer>
         <div class="footer-container">
             <div class="footer-column">
                 <h3>Thư viện Sách</h3>
@@ -1097,8 +1169,11 @@
             <div class="footer-column">
                 <h3>Liên kết nhanh</h3>
                 <ul class="footer-links">
-                    <li><a href="#home">Trang chủ</a></li>
-                    <li><a href="#books">Sách</a></li>
+                    <li><a href="index.php#home">Trang chủ</a></li>
+                    <li><a href="index.php#books">Sách</a></li>
+                    <li><a href="cart.php">Giỏ mượn</a></li>
+                    <li><a href="my_borrows.php">Sách đang mượn</a></li>
+                    <li><a href="edit_user.php">Hồ sơ</a></li>
                 </ul>
             </div>
             
@@ -1113,7 +1188,7 @@
         </div>
         
         <div class="copyright">
-            &copy; 2025 Thư viện Sách Trực tuyến. Tất cả các quyền được bảo lưu.
+            &copy; 2025 Thư viện Sách Trực tuyến. Phiên bản dành cho độc giả.
         </div>
     </footer>
 
@@ -1182,22 +1257,8 @@
             });
         });
         
-        // Tự động focus vào ô tìm kiếm nếu đang ở kết quả tìm kiếm
-        <?php if ($has_search): ?>
+        // Tự động focus vào ô tìm kiếm
         document.querySelector('.search-box input')?.focus();
-        <?php endif; ?>
-        
-        // Hiển thị thông báo khi click vào sách khi chưa đăng nhập
-        <?php if (!$isLoggedIn): ?>
-        document.querySelectorAll('.book-card').forEach(card => {
-            card.addEventListener('click', function(e) {
-                if (this.getAttribute('href') === '#') {
-                    e.preventDefault();
-                    alert('Vui lòng đăng nhập để xem chi tiết sách và mượn sách!');
-                }
-            });
-        });
-        <?php endif; ?>
     </script>
 </body>
 </html>

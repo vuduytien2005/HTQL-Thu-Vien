@@ -9,9 +9,12 @@ if ($_SESSION['user']['role'] !== 'admin') {
 $stmt = $pdo->query("SELECT * FROM BAO_CAO_THONG_KE ORDER BY Thoi_gian_tao DESC");
 $reports = $stmt->fetchAll();
 
-// Thống kê nhanh
+// Thống kê nhanh - ĐÃ SỬA LỖI
 $total_reports = count($reports);
-$report_types = array_count_values(array_column($reports, 'Loai_bao_cao'));
+$report_types = [];
+if (!empty($reports)) {
+    $report_types = array_count_values(array_column($reports, 'Loai_bao_cao'));
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -285,6 +288,10 @@ $report_types = array_count_values(array_column($reports, 'Loai_bao_cao'));
                     <tbody>
                         <?php foreach ($reports as $r): 
                             $data = json_decode($r['Du_lieu'], true);
+                            // Kiểm tra lỗi JSON
+                            if (json_last_error() !== JSON_ERROR_NONE) {
+                                $data = ['error' => 'Dữ liệu không hợp lệ'];
+                            }
                             $time_ago = time_elapsed_string($r['Thoi_gian_tao']);
                         ?>
                             <tr>
@@ -319,12 +326,6 @@ $report_types = array_count_values(array_column($reports, 'Loai_bao_cao'));
                                            class="btn-sm btn-export"
                                            title="Xuất báo cáo">
                                            📥 Xuất
-                                        </a>
-                                        <a href="delete_report.php?id=<?= $r['Ma_bao_cao'] ?>" 
-                                           class="btn-sm btn-delete"
-                                           onclick="return confirm('Bạn có chắc chắn muốn xóa báo cáo #<?= $r['Ma_bao_cao'] ?>?')"
-                                           title="Xóa báo cáo">
-                                           🗑️ Xóa
                                         </a>
                                     </div>
                                 </td>
@@ -361,16 +362,27 @@ $report_types = array_count_values(array_column($reports, 'Loai_bao_cao'));
 </html>
 
 <?php
-// Helper functions
+// Helper functions - ĐÃ SỬA LỖI HÀM time_elapsed_string()
 function time_elapsed_string($datetime, $full = false) {
     $now = new DateTime;
     $ago = new DateTime($datetime);
     $diff = $now->diff($ago);
 
-    $diff->w = floor($diff->d / 7);
-    $diff->d -= $diff->w * 7;
-
+    // Tính tuần từ số ngày
+    $weeks = floor($diff->d / 7);
+    $days = $diff->d % 7;
+    
     $string = array(
+        'y' => $diff->y,
+        'm' => $diff->m,
+        'w' => $weeks,
+        'd' => $days,
+        'h' => $diff->h,
+        'i' => $diff->i,
+        's' => $diff->s,
+    );
+    
+    $labels = array(
         'y' => 'năm',
         'm' => 'tháng',
         'w' => 'tuần',
@@ -380,16 +392,18 @@ function time_elapsed_string($datetime, $full = false) {
         's' => 'giây',
     );
     
-    foreach ($string as $k => &$v) {
-        if ($diff->$k) {
-            $v = $diff->$k . ' ' . $v . ' trước';
-        } else {
-            unset($string[$k]);
+    $result = array();
+    foreach ($string as $key => $value) {
+        if ($value > 0) {
+            $result[] = $value . ' ' . $labels[$key] . ' trước';
         }
     }
 
-    if (!$full) $string = array_slice($string, 0, 1);
-    return $string ? implode(', ', $string) : 'vừa xong';
+    if (!$full && !empty($result)) {
+        $result = array_slice($result, 0, 1);
+    }
+    
+    return !empty($result) ? implode(', ', $result) : 'vừa xong';
 }
 
 function get_report_type_class($type) {

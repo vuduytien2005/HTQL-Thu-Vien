@@ -2,62 +2,82 @@
 session_start();
 require '../config/db.php';
 
-// Kiểm tra đăng nhập
-if (!isset($_SESSION["user"]) || $_SESSION['user']['role'] !== 'docgia') {
+if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'docgia') {
     header('Location: ../auth/login.php');
-    exit;
+    exit();
 }
 
-// Lấy thông tin user từ session
-$user = $_SESSION["user"];
-$username = $user["username"];
+$user = $_SESSION['user'];
+$username = $user['username'];
 
-// Lấy thông tin độc giả từ bảng DOC_GIA dựa vào username
+// Lấy thông tin độc giả
 $stmt = $pdo->prepare("SELECT * FROM DOC_GIA WHERE Ma_doc_gia = ?");
 $stmt->execute([$username]);
 $doc_gia = $stmt->fetch();
 
-// Nếu chưa có thông tin trong DOC_GIA, tạo bản ghi mới
-if (!$doc_gia) {
-    // Tạo thông tin mặc định
-    $stmt = $pdo->prepare("INSERT INTO DOC_GIA (Ma_doc_gia, Ho_ten, Email) VALUES (?, ?, ?)");
-    $stmt->execute([$username, $username, $user['email'] ?? '']);
-    
-    // Lấy lại thông tin
-    $stmt = $pdo->prepare("SELECT * FROM DOC_GIA WHERE Ma_doc_gia = ?");
-    $stmt->execute([$username]);
-    $doc_gia = $stmt->fetch();
+// Lấy sách trong giỏ
+$stmt = $pdo->prepare("SELECT g.*, s.So_ban, s.So_ban_dang_muon 
+                       FROM gio_muon_tam g 
+                       JOIN SACH s ON g.Ma_sach = s.Ma_sach 
+                       WHERE g.Ma_doc_gia = ?");
+$stmt->execute([$username]);
+$cart_items = $stmt->fetchAll();
+
+// Xử lý xóa sách khỏi giỏ
+if (isset($_GET['remove'])) {
+    $remove_id = $_GET['remove'];
+    $stmt = $pdo->prepare("DELETE FROM gio_muon_tam WHERE id = ? AND Ma_doc_gia = ?");
+    $stmt->execute([$remove_id, $username]);
+    $_SESSION['success'] = "Đã xóa sách khỏi giỏ!";
+    header('Location: cart.php');
+    exit();
 }
 
-// Xử lý cập nhật thông tin
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $ho_ten = $_POST['ho_ten'];
-    $ngay_sinh = !empty($_POST['ngay_sinh']) ? $_POST['ngay_sinh'] : null;
-    $gioi_tinh = !empty($_POST['gioi_tinh']) ? $_POST['gioi_tinh'] : null;
-    $dia_chi = !empty($_POST['dia_chi']) ? $_POST['dia_chi'] : null;
-    $sdt = !empty($_POST['sdt']) ? $_POST['sdt'] : null;
-    $email = !empty($_POST['email']) ? $_POST['email'] : null;
-
+// Xử lý tạo phiếu mượn
+if (isset($_POST['create_borrow']) && count($cart_items) > 0) {
     try {
-        $stmt = $pdo->prepare("UPDATE DOC_GIA SET Ho_ten = ?, Ngay_sinh = ?, Gioi_tinh = ?, Dia_chi = ?, SDT = ?, Email = ? WHERE Ma_doc_gia = ?");
-        $stmt->execute([$ho_ten, $ngay_sinh, $gioi_tinh, $dia_chi, $sdt, $email, $username]);
+        $pdo->beginTransaction();
         
-        $_SESSION['success'] = "Cập nhật thông tin thành công!";
+        // Tạo mã phiếu mượn mới
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM PHIEU_MUON");
+        $result = $stmt->fetch();
+        $new_id = 'PM' . str_pad($result['count'] + 1, 6, '0', STR_PAD_LEFT);
         
-        // Lấy lại thông tin mới nhất
-        $stmt = $pdo->prepare("SELECT * FROM DOC_GIA WHERE Ma_doc_gia = ?");
+        // Ngày mượn: hôm nay, Ngày hẹn trả: +7 ngày
+        $ngay_muon = date('Y-m-d');
+        $ngay_hen_tra = date('Y-m-d', strtotime('+7 days'));
+        
+        // Tạo phiếu mượn
+        $stmt = $pdo->prepare("INSERT INTO PHIEU_MUON (Ma_phieu_muon, Ma_doc_gia, Ngay_muon, Ngay_hen_tra, Tong_so_sach, Trang_thai) 
+                               VALUES (?, ?, ?, ?, ?, 'Đang mượn')");
+        $stmt->execute([$new_id, $username, $ngay_muon, $ngay_hen_tra, count($cart_items)]);
+        
+        // Thêm chi tiết mượn và cập nhật số sách đang mượn
+        foreach ($cart_items as $item) {
+            // Thêm chi tiết mượn
+            $stmt = $pdo->prepare("INSERT INTO CHI_TIET_MUON (Ma_phieu_muon, Ma_sach) VALUES (?, ?)");
+            $stmt->execute([$new_id, $item['Ma_sach']]);
+            
+            // Cập nhật số sách đang mượn
+            $stmt = $pdo->prepare("UPDATE SACH SET So_ban_dang_muon = So_ban_dang_muon + 1 WHERE Ma_sach = ?");
+            $stmt->execute([$item['Ma_sach']]);
+        }
+        
+        // Xóa giỏ sau khi tạo phiếu thành công
+        $stmt = $pdo->prepare("DELETE FROM gio_muon_tam WHERE Ma_doc_gia = ?");
         $stmt->execute([$username]);
-        $doc_gia = $stmt->fetch();
+        
+        $pdo->commit();
+        
+        $_SESSION['success'] = "Tạo phiếu mượn thành công! Mã phiếu: " . $new_id;
+        header('Location: my_borrows.php');
+        exit();
         
     } catch (Exception $e) {
+        $pdo->rollBack();
         $_SESSION['error'] = "Có lỗi xảy ra: " . $e->getMessage();
     }
 }
-
-// Đếm số sách trong giỏ
-$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM gio_muon_tam WHERE Ma_doc_gia = ?");
-$stmt->execute([$username]);
-$cart_count = $stmt->fetch()['count'];
 
 // Hàm lấy chữ cái đầu cho avatar
 function getAvatarInitials($name) {
@@ -77,25 +97,25 @@ function getAvatarInitials($name) {
 
 $userFullName = $doc_gia['Ho_ten'] ?? $username;
 $avatarInitials = getAvatarInitials($userFullName);
+
+// Đếm số sách trong giỏ
+$stmt = $pdo->prepare("SELECT COUNT(*) as count FROM gio_muon_tam WHERE Ma_doc_gia = ?");
+$stmt->execute([$username]);
+$cart_count = $stmt->fetch()['count'];
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thông tin cá nhân - Thư viện Sách</title>
+    <title>Giỏ sách muốn mượn</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-        }
-        
-        html, body {
-            width: 100%;
-            height: 100%;
-            scroll-behavior: smooth;
         }
         
         body {
@@ -314,16 +334,12 @@ $avatarInitials = getAvatarInitials($userFullName);
         }
         
         /* Main container */
-        .edit-container {
-            max-width: 800px;
+        .container {
+            max-width: 1000px;
             margin: 120px auto 50px;
-            padding: 0 20px;
-        }
-        
-        .edit-card {
+            padding: 20px;
             background: white;
             border-radius: 15px;
-            padding: 40px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }
         
@@ -333,20 +349,182 @@ $avatarInitials = getAvatarInitials($userFullName);
             padding-bottom: 15px;
             border-bottom: 3px solid #26d0ce;
             font-size: 2rem;
+        }
+        
+        .cart-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        
+        .cart-table th {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: left;
+            color: #1a2980;
+            border-bottom: 3px solid #26d0ce;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+        }
+        
+        .cart-table td {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }
+        
+        .cart-table tr:hover {
+            background: #f8fafc;
+        }
+        
+        .cart-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .remove-btn {
+            color: #ef4444;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.3s;
             display: flex;
             align-items: center;
-            gap: 15px;
+            justify-content: center;
         }
         
-        .page-title i {
-            color: #26d0ce;
+        .remove-btn:hover {
+            background: #fef2f2;
+            transform: scale(1.1);
         }
         
-        /* Message Styles */
+        .cart-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 30px 0;
+            border-top: 2px solid #e2e8f0;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 14px 35px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #1a2980, #26d0ce);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(26, 41, 128, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            border: 2px solid #cbd5e1;
+        }
+        
+        .btn-secondary:hover {
+            background: #e2e8f0;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .empty-cart {
+            text-align: center;
+            padding: 80px 20px;
+            color: #64748b;
+        }
+        
+        .empty-cart i {
+            font-size: 5rem;
+            color: #cbd5e1;
+            margin-bottom: 25px;
+            display: block;
+        }
+        
+        .empty-cart h3 {
+            color: #475569;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .empty-cart p {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+        }
+        
+        .book-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        
+        .status-available {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-limited {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-unavailable {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .info-box {
+            background: #f8fafc;
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 30px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .info-box h4 {
+            color: #1e293b;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .info-box ul {
+            margin-left: 20px;
+            color: #475569;
+        }
+        
+        .info-box li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        
         .message {
             padding: 15px 20px;
             border-radius: 8px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             font-weight: 500;
             display: flex;
             align-items: center;
@@ -375,135 +553,6 @@ $avatarInitials = getAvatarInitials($userFullName);
             background-color: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
-        }
-        
-        /* Form Styles */
-        .form-group {
-            margin-bottom: 25px;
-        }
-        
-        .form-label {
-            display: block;
-            color: #1a2980;
-            font-weight: 600;
-            margin-bottom: 8px;
-            font-size: 1rem;
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: all 0.3s;
-            background: white;
-        }
-        
-        .form-control:focus {
-            outline: none;
-            border-color: #26d0ce;
-            box-shadow: 0 0 0 3px rgba(38, 208, 206, 0.1);
-        }
-        
-        .form-control:disabled {
-            background: #f8f9fa;
-            color: #6c757d;
-            cursor: not-allowed;
-        }
-        
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 25px;
-        }
-        
-        .form-actions {
-            display: flex;
-            gap: 15px;
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 2px solid #e2e8f0;
-        }
-        
-        .btn {
-            padding: 14px 35px;
-            border-radius: 8px;
-            font-weight: 600;
-            text-decoration: none;
-            border: 2px solid transparent;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1rem;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #1a2980, #26d0ce);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(26, 41, 128, 0.3);
-        }
-        
-        .btn-secondary {
-            background: white;
-            color: #475569;
-            border: 2px solid #cbd5e1;
-        }
-        
-        .btn-secondary:hover {
-            background: #f1f5f9;
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-        
-        /* User info summary */
-        .user-summary {
-            background: linear-gradient(135deg, #f8f9fa, #ffffff);
-            border-radius: 10px;
-            padding: 25px;
-            margin-bottom: 40px;
-            border-left: 4px solid #26d0ce;
-        }
-        
-        .user-summary h3 {
-            color: #1a2980;
-            margin-bottom: 20px;
-            font-size: 1.3rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-        }
-        
-        .summary-item {
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-        }
-        
-        .summary-label {
-            color: #64748b;
-            font-size: 0.9rem;
-            margin-bottom: 5px;
-        }
-        
-        .summary-value {
-            color: #1e293b;
-            font-weight: 600;
-            font-size: 1.1rem;
         }
         
         /* Footer */
@@ -589,26 +638,29 @@ $avatarInitials = getAvatarInitials($userFullName);
                 width: auto;
             }
             
-            .edit-container {
+            .container {
                 margin: 140px auto 30px;
-                padding: 0 15px;
-            }
-            
-            .edit-card {
-                padding: 25px;
+                padding: 15px;
             }
             
             .page-title {
                 font-size: 1.7rem;
             }
             
-            .form-row {
-                grid-template-columns: 1fr;
-                gap: 15px;
+            .cart-table {
+                display: block;
+                overflow-x: auto;
             }
             
-            .form-actions {
+            .cart-table th,
+            .cart-table td {
+                padding: 12px 15px;
+            }
+            
+            .cart-actions {
                 flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
             }
             
             .btn {
@@ -652,9 +704,7 @@ $avatarInitials = getAvatarInitials($userFullName);
                 <a href="my_borrows.php">
                     <i class="fas fa-book"></i> Sách đang mượn
                 </a>
-                <a href="edit_user.php" style="color: #1a2980;">
-                    <i class="fas fa-user"></i> Hồ sơ
-                </a>
+                <a href="edit_user.php">Hồ sơ</a>
             </div>
             
             <!-- User Avatar -->
@@ -689,120 +739,114 @@ $avatarInitials = getAvatarInitials($userFullName);
     </header>
     
     <!-- Main Content -->
-    <div class="edit-container">
-        <div class="edit-card">
-            <h1 class="page-title">
-             Thông tin cá nhân
-            </h1>
-            
-            <!-- Thông báo -->
-            <?php if (isset($_SESSION['success'])): ?>
+    <div class="container">
+        <h1 class="page-title">
+            <i class="fas fa-shopping-cart"></i> Giỏ sách muốn mượn
+        </h1>
+        
+        <?php if (isset($_SESSION['success'])): ?>
             <div class="message success">
                 <i class="fas fa-check-circle"></i> <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
             </div>
-            <?php endif; ?>
-            
-            <?php if (isset($_SESSION['error'])): ?>
+        <?php endif; ?>
+        
+        <?php if (isset($_SESSION['error'])): ?>
             <div class="message error">
                 <i class="fas fa-exclamation-circle"></i> <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
             </div>
-            <?php endif; ?>
+        <?php endif; ?>
+        
+        <?php if (empty($cart_items)): ?>
+            <div class="empty-cart">
+                <i class="fas fa-cart-arrow-down"></i>
+                <h3>Giỏ mượn trống</h3>
+                <p>Bạn chưa có sách nào trong giỏ mượn</p>
+            </div>
+        <?php else: ?>
+            <div style="overflow-x: auto;">
+                <table class="cart-table">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Tên sách</th>
+                            <th>Trạng thái</th>
+                            <th>Thời gian thêm</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($cart_items as $index => $item): 
+                            $so_ban_con = $item['So_ban'] - $item['So_ban_dang_muon'];
+                            
+                            if ($so_ban_con > 2) {
+                                $status_class = 'status-available';
+                                $status_text = 'Có sẵn';
+                            } elseif ($so_ban_con > 0) {
+                                $status_class = 'status-limited';
+                                $status_text = 'Số lượng ít';
+                            } else {
+                                $status_class = 'status-unavailable';
+                                $status_text = 'Đã hết';
+                            }
+                        ?>
+                        <tr>
+                            <td><strong><?php echo $index + 1; ?></strong></td>
+                            <td>
+                                <div style="font-weight: 600; color: #1e293b;"><?php echo htmlspecialchars($item['Ten_sach']); ?></div>
+                                <div style="font-size: 0.9rem; color: #64748b; margin-top: 5px;">
+                                    Mã sách: <?php echo htmlspecialchars($item['Ma_sach']); ?>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="book-status <?php echo $status_class; ?>">
+                                    <?php echo $status_text; ?>
+                                </span>
+                                <?php if ($so_ban_con > 0): ?>
+                                <div style="font-size: 0.85rem; color: #64748b; margin-top: 5px;">
+                                    Còn <?php echo $so_ban_con; ?> bản
+                                </div>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php echo date('d/m/Y', strtotime($item['Thoi_gian_them'])); ?>
+                                <div style="font-size: 0.85rem; color: #64748b; margin-top: 5px;">
+                                    <?php echo date('H:i', strtotime($item['Thoi_gian_them'])); ?>
+                                </div>
+                            </td>
+                            <td>
+                                <button onclick="if(confirm('Xóa sách này khỏi giỏ?')) window.location.href='?remove=<?php echo $item['id']; ?>'" 
+                                        class="remove-btn" title="Xóa sách">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
             
-            <!-- Form chỉnh sửa -->
-            <form method="POST">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">
-                            <i class="fas fa-id-card"></i> Mã độc giả
-                        </label>
-                        <input type="text" class="form-control" value="<?php echo htmlspecialchars($doc_gia['Ma_doc_gia']); ?>" disabled>
-                        <div style="font-size: 0.85rem; color: #64748b; margin-top: 5px;">
-                            Mã này được tự động tạo từ tên đăng nhập của bạn
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">
-                            <i class="fas fa-user"></i> Tên đăng nhập
-                        </label>
-                        <input type="text" class="form-control" value="<?php echo htmlspecialchars($username); ?>" disabled>
-                        <div style="font-size: 0.85rem; color: #64748b; margin-top: 5px;">
-                            Không thể thay đổi tên đăng nhập
-                        </div>
-                    </div>
-                </div>
+            <div class="cart-actions">
+                <a href="index.php" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Tiếp tục tìm sách
+                </a>
                 
-                <div class="form-group">
-                    <label class="form-label">
-                    </i> Họ và tên <span style="color: #ef4444;">*</span>
-                    </label>
-                    <input type="text" name="ho_ten" class="form-control" 
-                           value="<?php echo htmlspecialchars($doc_gia['Ho_ten']); ?>" 
-                           required
-                           placeholder="Nhập họ và tên đầy đủ">
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">
-                        </i> Ngày sinh
-                        </label>
-                        <input type="date" name="ngay_sinh" class="form-control" 
-                               value="<?php echo $doc_gia['Ngay_sinh']; ?>">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">
-                        </i> Giới tính
-                        </label>
-                        <select name="gioi_tinh" class="form-control">
-                            <option value="">-- Chọn giới tính --</option>
-                            <option value="Nam" <?php echo ($doc_gia['Gioi_tinh'] == 'Nam') ? 'selected' : ''; ?>>Nam</option>
-                            <option value="Nữ" <?php echo ($doc_gia['Gioi_tinh'] == 'Nữ') ? 'selected' : ''; ?>>Nữ</option>
-                            <option value="Khác" <?php echo ($doc_gia['Gioi_tinh'] == 'Khác') ? 'selected' : ''; ?>>Khác</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">
-                    </i> Địa chỉ
-                    </label>
-                    <input type="text" name="dia_chi" class="form-control" 
-                           value="<?php echo htmlspecialchars($doc_gia['Dia_chi']); ?>"
-                           placeholder="Nhập địa chỉ của bạn">
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">
-                        </i> Số điện thoại
-                        </label>
-                        <input type="tel" name="sdt" class="form-control" 
-                               value="<?php echo htmlspecialchars($doc_gia['SDT']); ?>"
-                               placeholder="Nhập số điện thoại">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">
-                        </i> Email
-                        </label>
-                        <input type="email" name="email" class="form-control" 
-                               value="<?php echo htmlspecialchars($doc_gia['Email']); ?>"
-                               placeholder="Nhập địa chỉ email">
-                    </div>
-                </div>
-                
-                <div class="form-actions">
-                    <a href="index.php" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Quay lại
-                    </a>
-                    <button type="submit" class="btn btn-primary">
-                    </i> Cập nhật thông tin
+                <form method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn tạo phiếu mượn với ' + <?php echo count($cart_items); ?> + ' cuốn sách này?')">
+                    <button type="submit" name="create_borrow" class="btn btn-primary">
+                        <i class="fas fa-file-invoice"></i> Tạo phiếu mượn (<?php echo count($cart_items); ?> sách)
                     </button>
-                </div>
-            </form>
-        </div>
+                </form>
+            </div>
+            
+            <div class="info-box">
+                <h4><i class="fas fa-info-circle"></i> Thông tin quan trọng</h4>
+                <ul>
+                    <li><strong>Thời hạn mượn:</strong> Mỗi phiếu mượn có thời hạn 7 ngày kể từ ngày mượn</li>
+                    <li><strong>Giới hạn mượn:</strong> Bạn có thể mượn tối đa 5 cuốn sách cùng lúc</li>
+                    <li><strong>Trả sách đúng hạn:</strong> Vui lòng trả sách đúng hạn để tránh bị phạt</li>
+                    <li><strong>Sách trong giỏ:</strong> Sách sẽ được giữ trong giỏ cho đến khi bạn tạo phiếu mượn</li>
+                </ul>
+            </div>
+        <?php endif; ?>
     </div>
 
     <!-- Footer -->
@@ -857,28 +901,20 @@ $avatarInitials = getAvatarInitials($userFullName);
             });
         }, 5000);
         
-        // Xác nhận khi rời trang với form chưa lưu
-        let formChanged = false;
-        const form = document.querySelector('form');
-        const inputs = form.querySelectorAll('input, select');
-        
-        inputs.forEach(input => {
-            input.addEventListener('change', function() {
-                formChanged = true;
-            });
-        });
-        
-        // Ngăn rời trang nếu form đã thay đổi
-        window.addEventListener('beforeunload', function(e) {
-            if (formChanged) {
-                e.preventDefault();
-                e.returnValue = 'Bạn có thay đổi chưa được lưu. Bạn có chắc chắn muốn rời trang?';
+        // Xác nhận khi xóa sách khỏi giỏ
+        function confirmRemove(button) {
+            if (confirm('Bạn có chắc chắn muốn xóa sách này khỏi giỏ mượn?')) {
+                const removeId = button.getAttribute('data-id');
+                window.location.href = '?remove=' + removeId;
             }
-        });
+        }
         
-        // Reset formChanged khi submit
-        form.addEventListener('submit', function() {
-            formChanged = false;
+        // Xác nhận tạo phiếu mượn
+        document.querySelector('form')?.addEventListener('submit', function(e) {
+            const bookCount = <?php echo count($cart_items); ?>;
+            if (!confirm(`Bạn có chắc chắn muốn tạo phiếu mượn với ${bookCount} cuốn sách?\n\nSau khi tạo phiếu, sách sẽ được chuyển vào danh sách sách đang mượn và không thể hủy.`)) {
+                e.preventDefault();
+            }
         });
     </script>
 </body>

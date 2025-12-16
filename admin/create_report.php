@@ -12,23 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $loai_bao_cao = $_POST['loai_bao_cao'];
     $ghi_chu = $_POST['ghi_chu'];
     
-    // Lấy Ma_nhan_vien từ session thay vì username
-    $nguoi_tao = $_SESSION['user']['Ma_nhan_vien'] ?? $_SESSION['user']['id'] ?? null;
-
-    // Nếu không có Ma_nhan_vien, thử lấy từ bảng TAI_KHOAN
-    if (!$nguoi_tao) {
-        $stmt = $pdo->prepare("SELECT Ma_nhan_vien FROM TAI_KHOAN WHERE username = ?");
-        $stmt->execute([$_SESSION['user']['username']]);
-        $user_info = $stmt->fetch();
-        $nguoi_tao = $user_info['Ma_nhan_vien'] ?? null;
-    }
-
-    // Nếu vẫn không có Ma_nhan_vien, sử dụng giá trị mặc định hoặc báo lỗi
-    if (!$nguoi_tao) {
-        // Tìm Ma_nhan_vien đầu tiên trong bảng nhan_vien
-        $first_employee = $pdo->query("SELECT Ma_nhan_vien FROM nhan_vien LIMIT 1")->fetch();
-        $nguoi_tao = $first_employee['Ma_nhan_vien'] ?? 'ADMIN001'; // Hoặc giá trị mặc định
-    }
+    // Lấy username từ session
+    $nguoi_tao = $_SESSION['user']['username'];
 
     // Tự động lấy dữ liệu thống kê từ database
     $total_books = $pdo->query("SELECT COUNT(*) FROM SACH")->fetchColumn();
@@ -36,29 +21,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Kiểm tra xem bảng PHIEU_MUON có tồn tại không
     try {
-        $total_borrows = $pdo->query("SELECT COUNT(*) FROM PHIEU_MUON")->fetchColumn();
+        $total_borrows = $pdo->query("SELECT COUNT(*) FROM phieu_muon")->fetchColumn();
     } catch (Exception $e) {
         $total_borrows = 0;
-    }
-    
-    // Kiểm tra xem bảng CHI_TIET_MUON có tồn tại và có cột Tien_phat không
-    try {
-        $total_fines = $pdo->query("SELECT SUM(Tien_phat) FROM CHI_TIET_MUON")->fetchColumn();
-    } catch (Exception $e) {
-        $total_fines = 0;
     }
 
     // Tạo dữ liệu JSON
     $du_lieu = json_encode([
-        'Tổng số sách' => $total_books,
-        'Tổng số độc giả' => $total_readers,
-        'Tổng số lượt mượn' => $total_borrows,
-        'Tổng tiền phạt' => $total_fines ?? 0,
+        'Tổng số sách' => (int)$total_books,
+        'Tổng số độc giả' => (int)$total_readers,
+        'Tổng số lượt mượn' => (int)$total_borrows,
         'Ghi chú' => $ghi_chu
     ], JSON_UNESCAPED_UNICODE);
 
     try {
-        $stmt = $pdo->prepare("INSERT INTO BAO_CAO_THONG_KE (Loai_bao_cao, Nguoi_tao, Du_lieu) VALUES (?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO bao_cao_thong_ke (Loai_bao_cao, Nguoi_tao, Du_lieu) VALUES (?, ?, ?)");
         $stmt->execute([$loai_bao_cao, $nguoi_tao, $du_lieu]);
         $message = "✅ Đã tạo báo cáo thống kê thành công!";
     } catch (Exception $e) {
@@ -71,15 +48,9 @@ $total_books = $pdo->query("SELECT COUNT(*) FROM SACH")->fetchColumn();
 $total_readers = $pdo->query("SELECT COUNT(*) FROM DOC_GIA")->fetchColumn();
 
 try {
-    $total_borrows = $pdo->query("SELECT COUNT(*) FROM PHIEU_MUON")->fetchColumn();
+    $total_borrows = $pdo->query("SELECT COUNT(*) FROM phieu_muon")->fetchColumn();
 } catch (Exception $e) {
     $total_borrows = 0;
-}
-
-try {
-    $total_fines = $pdo->query("SELECT SUM(Tien_phat) FROM CHI_TIET_MUON")->fetchColumn();
-} catch (Exception $e) {
-    $total_fines = 0;
 }
 ?>
 
@@ -194,6 +165,25 @@ try {
             border-top: 1px solid #e6eef8;
         }
         
+        .message {
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .message.success {
+            background: #efe;
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+        
+        .message.error {
+            background: #fee;
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+        
         @media (max-width: 768px) {
             .stats-grid {
                 grid-template-columns: 1fr;
@@ -206,6 +196,47 @@ try {
             .form-actions .btn {
                 width: 100%;
             }
+        }
+        
+        .required-field::after {
+            content: " *";
+            color: var(--danger);
+        }
+        
+        .help-text {
+            color: var(--muted);
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
         }
     </style>
 </head>
@@ -248,10 +279,6 @@ try {
                         <span class="stat-number"><?= number_format($total_borrows) ?></span>
                         <span class="stat-label">Lượt mượn</span>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-number"><?= number_format($total_fines ?? 0) ?></span>
-                        <span class="stat-label">Tiền phạt (VNĐ)</span>
-                    </div>
                 </div>
             </div>
 
@@ -274,26 +301,12 @@ try {
                     </div>
 
                     <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">💾 Tạo báo cáo</button>
+                        <button type="submit" class="btn btn-primary">📊 Tạo báo cáo</button>
                         <a href="dashboard.php" class="btn btn-secondary">← Quay lại Dashboard</a>
-                        <a href="list_report.php" class="btn" style="background: var(--accent); color: white;">📋 Xem báo cáo</a>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-
-    <style>
-        .required-field::after {
-            content: " *";
-            color: var(--danger);
-        }
-        
-        .help-text {
-            color: var(--muted);
-            font-size: 0.85rem;
-            margin-top: 4px;
-        }
-    </style>
 </body>
 </html>

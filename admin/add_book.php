@@ -6,45 +6,51 @@ if ($_SESSION['user']['role'] !== 'admin') {
     die("Bạn không có quyền thêm sách.");
 }
 
-// Lấy danh sách nhà cung cấp từ database
+// Lấy danh sách nhà cung cấp từ bảng nha_cung_cap (giống update_book)
 $suppliers = $pdo->query("SELECT * FROM nha_cung_cap")->fetchAll();
 
-// Lấy danh sách thể loại từ database
+// Lấy danh sách thể loại từ bảng the_loai (giống update_book)
 $categories = $pdo->query("SELECT * FROM the_loai")->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ma_sach = $_POST['ma_sach'];
     $ten_sach = $_POST['ten_sach'];
     $ten_tac_gia = $_POST['ten_tac_gia'];
-    $nam_xuat_ban = $_POST['nam_xuat_ban'];
-    $nha_xuat_ban = $_POST['nha_xuat_ban'];
-    $gia_tien = $_POST['gia_tien'];
+    $nam_xuat_ban = !empty($_POST['nam_xuat_ban']) ? $_POST['nam_xuat_ban'] : null;
+    $nha_xuat_ban = !empty($_POST['nha_xuat_ban']) ? $_POST['nha_xuat_ban'] : null;
+    $gia_tien = !empty($_POST['gia_tien']) ? $_POST['gia_tien'] : null;
     $so_ban = $_POST['so_ban'];
-    $nguon_cung_cap = $_POST['nguon_cung_cap'];
+    $so_ban_dang_muon = 0; // Mặc định khi thêm sách mới là 0
+    $nguon_cung_cap = !empty($_POST['nguon_cung_cap']) ? $_POST['nguon_cung_cap'] : null;
     $trang_thai = $_POST['trang_thai'];
-    $the_loai = $_POST['the_loai'] ?? [];
+    $ten_the_loai = !empty($_POST['ten_the_loai']) ? $_POST['ten_the_loai'] : null;
+    $noi_dung = !empty($_POST['noi_dung']) ? $_POST['noi_dung'] : null;
 
     try {
-        $pdo->beginTransaction();
+        // Thêm sách vào bảng SACH với tất cả các trường
+        $stmt = $pdo->prepare("INSERT INTO SACH 
+            (Ma_sach, Noi_dung, Ten_sach, Nam_xuat_ban, Nha_xuat_ban, Gia_tien, So_ban, 
+             So_ban_dang_muon, Trang_thai, Nguon_cung_cap, Ten_tac_gia, Ten_the_loai)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        
+        $stmt->execute([
+            $ma_sach, 
+            $noi_dung, 
+            $ten_sach, 
+            $nam_xuat_ban, 
+            $nha_xuat_ban, 
+            $gia_tien, 
+            $so_ban, 
+            $so_ban_dang_muon, 
+            $trang_thai, 
+            $nguon_cung_cap, 
+            $ten_tac_gia, 
+            $ten_the_loai
+        ]);
 
-        // Thêm sách vào bảng SACH
-        $stmt = $pdo->prepare("INSERT INTO SACH (Ma_sach, Ten_sach, Ten_tac_gia, Nam_xuat_ban, Nha_xuat_ban, Gia_tien, So_ban, So_ban_dang_muon, Trang_thai, Nguon_cung_cap)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)");
-        $stmt->execute([$ma_sach, $ten_sach, $ten_tac_gia, $nam_xuat_ban, $nha_xuat_ban, $gia_tien, $so_ban, $trang_thai, $nguon_cung_cap]);
-
-        // Thêm thể loại vào bảng trung gian sach_the_loai
-        if (!empty($the_loai)) {
-            $stmt_the_loai = $pdo->prepare("INSERT INTO sach_the_loai (Ma_sach, Ma_the_loai) VALUES (?, ?)");
-            foreach ($the_loai as $ma_the_loai) {
-                $stmt_the_loai->execute([$ma_sach, $ma_the_loai]);
-            }
-        }
-
-        $pdo->commit();
         header('Location: dashboard.php?success=Thêm sách thành công');
         exit();
     } catch (PDOException $e) {
-        $pdo->rollBack();
         $error = "Lỗi: " . $e->getMessage();
     }
 }
@@ -58,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="../assets/css/style.css">
     <style>
         .add-book {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
         }
         
@@ -109,45 +115,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         .form-group input[type="text"],
         .form-group input[type="number"],
-        .form-group select {
+        .form-group select,
+        .form-group textarea {
             width: 100%;
             padding: 10px 12px;
             border: 1px solid #e6eef8;
             border-radius: 6px;
             font-size: 0.95rem;
             background: #fff;
-            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
         }
         
         .form-group input:focus,
-        .form-group select:focus {
+        .form-group select:focus,
+        .form-group textarea:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(16, 109, 177, 0.1);
-        }
-        
-        .checkbox-group {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-            margin-top: 8px;
-            max-height: 200px;
-            overflow-y: auto;
-            padding: 10px;
-            background: #f8fafc;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
-        }
-        
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .checkbox-item input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
         }
         
         .form-actions {
@@ -176,7 +165,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border: 1px solid #e6eef8;
             font-weight: 500;
             transition: all 0.3s ease;
-            font-size: 0.9rem;
         }
         
         .quick-link:hover {
@@ -213,6 +201,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-bottom: 20px;
         }
         
+        .warning-note {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b8daff;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .info-box strong {
+            color: var(--primary);
+        }
+        
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
@@ -230,20 +241,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             .form-actions .btn {
                 width: 100%;
             }
-            
-            .checkbox-group {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        .supplier-select {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        
-        .supplier-select select {
-            flex: 1;
         }
     </style>
 </head>
@@ -259,16 +256,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </p>
                 </div>
                 <div>
-                    <a href="dashboard.php" class="btn btn-secondary">← Dashboard</a>
+                    <a href="dashboard.php" class="btn btn-secondary">← Trang chủ</a>
                 </div>
             </div>
 
             <!-- Quick Links -->
             <div class="quick-links">
-                <a href="dashboard.php" class="quick-link"> Dashboard</a>
-                <a href="list_book.php" class="quick-link"> Danh sách sách</a>
-                <a href="add_type.php" class="quick-link"> Thêm thể loại</a>
-                <a href="add_supplier.php" class="quick-link"> Thêm nhà cung cấp</a>
+                <a href="list_book.php" class="quick-link">Danh sách sách</a>
             </div>
 
             <!-- Thông báo lỗi -->
@@ -292,6 +286,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <!-- Form thêm sách -->
             <div class="form-container">
                 <form method="POST">
+                    <div class="warning-note">
+                        <strong>⚠ Lưu ý:</strong> Các trường có dấu * là bắt buộc.
+                    </div>
+                    
                     <div class="form-grid">
                         <!-- Cột 1 -->
                         <div class="form-group">
@@ -301,20 +299,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         
                         <div class="form-group">
-                            <label for="so_ban" class="required-field">Số bản</label>
-                            <input type="number" id="so_ban" name="so_ban" placeholder="0" required min="0" value="1">
-                            <div class="help-text">Số lượng bản sách có trong kho</div>
-                        </div>
-                        
-                        <div class="form-group">
                             <label for="ten_sach" class="required-field">Tên sách</label>
                             <input type="text" id="ten_sach" name="ten_sach" placeholder="Nhập tên sách" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="gia_tien" class="required-field">Giá tiền (VNĐ)</label>
-                            <input type="number" id="gia_tien" name="gia_tien" placeholder="0" step="0.01" min="0" required>
-                            <div class="help-text">Giá tiền của một bản sách</div>
                         </div>
                         
                         <div class="form-group">
@@ -322,22 +308,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <input type="text" id="ten_tac_gia" name="ten_tac_gia" placeholder="Nhập tên tác giả" required>
                         </div>
                         
-                        <div class="form-group">
-                            <label for="nguon_cung_cap" class="required-field">Nguồn cung cấp</label>
-                            <div class="supplier-select">
-                                <select id="nguon_cung_cap" name="nguon_cung_cap" required>
-                                    <option value="">-- Chọn nhà cung cấp --</option>
-                                    <?php foreach ($suppliers as $supplier): ?>
-                                        <option value="<?= htmlspecialchars($supplier['Ten_nha_cung_cap']) ?>">
-                                            <?= htmlspecialchars($supplier['Ten_nha_cung_cap']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <a href="add_supplier.php" class="quick-link" title="Thêm nhà cung cấp mới">➕</a>
-                            </div>
-                        </div>
-                        
-                        <!-- Cột 2 -->
                         <div class="form-group">
                             <label for="nam_xuat_ban">Năm xuất bản</label>
                             <input type="number" id="nam_xuat_ban" name="nam_xuat_ban" 
@@ -347,45 +317,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         
                         <div class="form-group">
-                            <label for="trang_thai">Trạng thái</label>
-                            <select id="trang_thai" name="trang_thai">
-                                <option value="Còn">🟢 Còn</option>
-                                <option value="Hết">🔴 Hết</option>
+                            <label for="nha_xuat_ban">Nhà xuất bản</label>
+                            <input type="text" id="nha_xuat_ban" name="nha_xuat_ban" placeholder="Nhập tên nhà xuất bản">
+                            <div class="help-text">Để trống nếu không có</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="so_ban" class="required-field">Số bản hiện có</label>
+                            <input type="number" id="so_ban" name="so_ban" placeholder="0" required min="0" value="1">
+                            <div class="help-text">Số lượng bản sách có trong kho</div>
+                        </div>
+                        
+                        <!-- Cột 2 -->
+                        <div class="form-group">
+                            <label for="gia_tien" class="required-field">Giá tiền (VNĐ)</label>
+                            <input type="number" id="gia_tien" name="gia_tien" placeholder="0" step="0.01" min="0" required>
+                            <div class="help-text">Giá tiền của một bản sách</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="trang_thai" class="required-field">Trạng thái</label>
+                            <select id="trang_thai" name="trang_thai" required>
+                                <option value="Còn" selected>🟢 Còn (có sẵn)</option>
+                                <option value="Hết">🔴 Hết (đã hết sách)</option>
                                 <option value="Ngưng sử dụng">⚫ Ngưng sử dụng</option>
                             </select>
                             <div class="help-text">Trạng thái hiện tại của sách</div>
                         </div>
                         
                         <div class="form-group">
-                            <label for="nha_xuat_ban">Nhà xuất bản</label>
-                            <input type="text" id="nha_xuat_ban" name="nha_xuat_ban" placeholder="Nhập tên nhà xuất bản">
+                            <label for="nguon_cung_cap">Nguồn cung cấp</label>
+                            <select id="nguon_cung_cap" name="nguon_cung_cap">
+                                <option value="">-- Chọn nhà cung cấp --</option>
+                                <?php foreach ($suppliers as $supplier): ?>
+                                    <option value="<?= htmlspecialchars($supplier['Ten_nha_cung_cap']) ?>">
+                                        <?= htmlspecialchars($supplier['Ten_nha_cung_cap']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="help-text">Để trống nếu không có</div>
+                            <div class="info-box">
+                                <strong>Ghi chú:</strong> Muốn thêm nhà cung cấp mới, hãy <a href="add_supplier.php">tại đây</a>.
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="ten_the_loai">Thể loại</label>
+                            <select id="ten_the_loai" name="ten_the_loai">
+                                <option value="">-- Chọn thể loại --</option>
+                                <?php foreach ($categories as $category): ?>
+                                    <option value="<?= htmlspecialchars($category['Ten_the_loai']) ?>">
+                                        <?= htmlspecialchars($category['Ten_the_loai']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="info-box">
+                                <strong>Ghi chú:</strong> Sách chỉ có một thể loại chính. Muốn thêm thể loại mới, hãy <a href="add_type.php">tại đây</a>.
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Thể loại (full width) -->
+                    <!-- Nội dung (full width) -->
                     <div class="form-group full-width">
-                        <label>Thể loại</label>
-                        <div class="checkbox-group">
-                            <?php foreach ($categories as $category): ?>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" id="the_loai_<?= $category['Ma_the_loai'] ?>" 
-                                           name="the_loai[]" value="<?= $category['Ma_the_loai'] ?>">
-                                    <label for="the_loai_<?= $category['Ma_the_loai'] ?>" style="font-weight: normal; margin: 0;">
-                                        <?= htmlspecialchars($category['Ten_the_loai']) ?>
-                                    </label>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                        <div style="margin-top: 8px;">
-                            <a href="add_type.php" class="quick-link">➕ Thêm thể loại mới</a>
-                        </div>
+                        <label for="noi_dung">Nội dung tóm tắt</label>
+                        <textarea id="noi_dung" name="noi_dung" placeholder="Nhập nội dung tóm tắt về sách..."></textarea>
                     </div>
 
                     <!-- Form Actions -->
                     <div class="form-actions">
-                        <button type="submit" class="btn btn-primary"> Thêm sách</button>
+                        <button type="submit" class="btn btn-primary">Thêm sách</button>
                         <a href="dashboard.php" class="btn btn-secondary">Hủy bỏ</a>
-                        <button type="reset" class="btn" style="background: var(--muted); color: white;"> Làm mới</button>
+                        <button type="reset" class="btn" style="background: var(--muted); color: white;">Làm mới</button>
                     </div>
                 </form>
             </div>

@@ -187,15 +187,15 @@ $accounts = $stmt->fetchAll();
             <!-- Header -->
             <div class="page-header">
                 <div>
-                    <h1 class="page-title">📊 Quản lý Tài khoản</h1>
+                    <h1 class="page-title"> Quản lý Tài khoản</h1>
                     <p class="sub" style="color: var(--muted); margin-top: 4px;">Quản lý tất cả tài khoản trong hệ thống</p>
                 </div>
-                <a href="../admin/dashboard.php" class="btn btn-secondary">← Quay về Dashboard</a>
+                <a href="../admin/dashboard.php" class="btn btn-secondary">← Quay về </a>
             </div>
 
             <!-- Thông báo -->
             <?php if (isset($_GET['success'])): ?>
-                <div class="message success">✅ <?php echo htmlspecialchars($_GET['success']); ?></div>
+                <div class="message success"> <?php echo htmlspecialchars($_GET['success']); ?></div>
             <?php endif; ?>
 
             <!-- Form sửa tài khoản -->
@@ -228,8 +228,8 @@ $accounts = $stmt->fetchAll();
                         </div>
                         
                         <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">💾 Cập nhật tài khoản</button>
-                            <a href="list_account.php" class="btn btn-secondary">❌ Hủy bỏ</a>
+                            <button type="submit" class="btn btn-primary"> Cập nhật tài khoản</button>
+                            <a href="list_account.php" class="btn btn-secondary"> Hủy bỏ</a>
                         </div>
                     </form>
                 </div>
@@ -253,7 +253,7 @@ $accounts = $stmt->fetchAll();
                                 <td><?= htmlspecialchars($acc['username']) ?></td>
                                 <td>
                                     <span class="role-badge role-<?= $acc['role'] ?>">
-                                        <?= $acc['role'] === 'admin' ? '👑 Admin' : ($acc['role'] === 'docgia' ? ' Độc giả' : '👤 User') ?>
+                                        <?= $acc['role'] === 'admin' ? ' Admin' : ($acc['role'] === 'docgia' ? ' Độc giả' : '👤 User') ?>
                                     </span>
                                 </td>
                                 <td>

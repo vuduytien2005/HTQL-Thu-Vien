@@ -2,57 +2,30 @@
 session_start();
 require '../config/db.php';
 
-// Kiểm tra đăng nhập
-if (!isset($_SESSION["user"]) || $_SESSION['user']['role'] !== 'docgia') {
+if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'docgia') {
     header('Location: ../auth/login.php');
-    exit;
+    exit();
 }
 
-// Lấy thông tin user từ session
-$user = $_SESSION["user"];
-$username = $user["username"];
+$user = $_SESSION['user'];
+$username = $user['username'];
 
-// Lấy thông tin độc giả từ bảng DOC_GIA dựa vào username
+// Lấy thông tin độc giả
 $stmt = $pdo->prepare("SELECT * FROM DOC_GIA WHERE Ma_doc_gia = ?");
 $stmt->execute([$username]);
 $doc_gia = $stmt->fetch();
 
-// Nếu chưa có thông tin trong DOC_GIA, tạo bản ghi mới
-if (!$doc_gia) {
-    // Tạo thông tin mặc định
-    $stmt = $pdo->prepare("INSERT INTO DOC_GIA (Ma_doc_gia, Ho_ten, Email) VALUES (?, ?, ?)");
-    $stmt->execute([$username, $username, $user['email'] ?? '']);
-    
-    // Lấy lại thông tin
-    $stmt = $pdo->prepare("SELECT * FROM DOC_GIA WHERE Ma_doc_gia = ?");
-    $stmt->execute([$username]);
-    $doc_gia = $stmt->fetch();
-}
-
-// Xử lý cập nhật thông tin
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $ho_ten = $_POST['ho_ten'];
-    $ngay_sinh = !empty($_POST['ngay_sinh']) ? $_POST['ngay_sinh'] : null;
-    $gioi_tinh = !empty($_POST['gioi_tinh']) ? $_POST['gioi_tinh'] : null;
-    $dia_chi = !empty($_POST['dia_chi']) ? $_POST['dia_chi'] : null;
-    $sdt = !empty($_POST['sdt']) ? $_POST['sdt'] : null;
-    $email = !empty($_POST['email']) ? $_POST['email'] : null;
-
-    try {
-        $stmt = $pdo->prepare("UPDATE DOC_GIA SET Ho_ten = ?, Ngay_sinh = ?, Gioi_tinh = ?, Dia_chi = ?, SDT = ?, Email = ? WHERE Ma_doc_gia = ?");
-        $stmt->execute([$ho_ten, $ngay_sinh, $gioi_tinh, $dia_chi, $sdt, $email, $username]);
-        
-        $_SESSION['success'] = "Cập nhật thông tin thành công!";
-        
-        // Lấy lại thông tin mới nhất
-        $stmt = $pdo->prepare("SELECT * FROM DOC_GIA WHERE Ma_doc_gia = ?");
-        $stmt->execute([$username]);
-        $doc_gia = $stmt->fetch();
-        
-    } catch (Exception $e) {
-        $_SESSION['error'] = "Có lỗi xảy ra: " . $e->getMessage();
-    }
-}
+// Lấy phiếu mượn đang mượn
+$stmt = $pdo->prepare("SELECT p.*, 
+                       COUNT(c.Ma_sach) as so_sach,
+                       DATEDIFF(p.Ngay_hen_tra, CURDATE()) as con_lai
+                       FROM PHIEU_MUON p
+                       LEFT JOIN CHI_TIET_MUON c ON p.Ma_phieu_muon = c.Ma_phieu_muon
+                       WHERE p.Ma_doc_gia = ? AND p.Trang_thai = 'Đang mượn'
+                       GROUP BY p.Ma_phieu_muon
+                       ORDER BY p.Ngay_muon DESC");
+$stmt->execute([$username]);
+$current_borrows = $stmt->fetchAll();
 
 // Đếm số sách trong giỏ
 $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM gio_muon_tam WHERE Ma_doc_gia = ?");
@@ -83,7 +56,8 @@ $avatarInitials = getAvatarInitials($userFullName);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thông tin cá nhân - Thư viện Sách</title>
+    <title>Sách đang mượn</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -314,125 +288,208 @@ $avatarInitials = getAvatarInitials($userFullName);
         }
         
         /* Main container */
-        .edit-container {
-            max-width: 800px;
+        .container {
+            max-width: 1200px;
             margin: 120px auto 50px;
-            padding: 0 20px;
-        }
-        
-        .edit-card {
-            background: white;
-            border-radius: 15px;
-            padding: 40px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 20px;
         }
         
         .page-title {
-            color: #1a2980;
-            margin-bottom: 30px;
-            padding-bottom: 15px;
-            border-bottom: 3px solid #26d0ce;
-            font-size: 2rem;
-            display: flex;
-            align-items: center;
-            gap: 15px;
+            color: white;
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+            text-align: center;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
         }
         
         .page-title i {
             color: #26d0ce;
+            margin-right: 15px;
         }
         
-        /* Message Styles */
-        .message {
-            padding: 15px 20px;
-            border-radius: 8px;
+        .borrow-cards-container {
+            display: grid;
+            gap: 25px;
+        }
+        
+        .borrow-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border-left: 5px solid #26d0ce;
+        }
+        
+        .borrow-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+        
+        .borrow-card.overdue {
+            border-left-color: #ff6b6b;
+            background: linear-gradient(135deg, #fff5f5, #ffffff);
+        }
+        
+        .borrow-card.warning {
+            border-left-color: #ffc107;
+            background: linear-gradient(135deg, #fff9e6, #ffffff);
+        }
+        
+        .borrow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .borrow-id {
+            font-weight: bold;
+            color: #1a2980;
+            font-size: 1.4rem;
+        }
+        
+        .borrow-status {
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-active {
+            background: rgba(38, 208, 206, 0.15);
+            color: #26d0ce;
+        }
+        
+        .status-warning {
+            background: rgba(255, 193, 7, 0.15);
+            color: #ffc107;
+        }
+        
+        .status-overdue {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+        }
+        
+        .borrow-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 25px;
             margin-bottom: 30px;
-            font-weight: 500;
+        }
+        
+        .detail-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .detail-value {
+            color: #1a2980;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+        
+        .books-list {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .books-list-title {
+            color: #1a2980;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
             display: flex;
             align-items: center;
             gap: 10px;
-            animation: slideDown 0.3s ease;
         }
         
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .book-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #e2e8f0;
+            transition: all 0.2s;
         }
         
-        .message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        /* Form Styles */
-        .form-group {
-            margin-bottom: 25px;
-        }
-        
-        .form-label {
-            display: block;
-            color: #1a2980;
-            font-weight: 600;
-            margin-bottom: 8px;
-            font-size: 1rem;
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: all 0.3s;
+        .book-item:hover {
             background: white;
         }
         
-        .form-control:focus {
-            outline: none;
-            border-color: #26d0ce;
-            box-shadow: 0 0 0 3px rgba(38, 208, 206, 0.1);
+        .book-item:last-child {
+            border-bottom: none;
         }
         
-        .form-control:disabled {
-            background: #f8f9fa;
-            color: #6c757d;
-            cursor: not-allowed;
+        .book-info {
+            flex: 1;
         }
         
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+        .book-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+        }
+        
+        .book-author {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .empty-state i {
+            font-size: 5rem;
+            color: #cbd5e1;
             margin-bottom: 25px;
+            display: block;
         }
         
-        .form-actions {
-            display: flex;
-            gap: 15px;
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 2px solid #e2e8f0;
+        .empty-state h3 {
+            color: #475569;
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+        
+        .empty-state p {
+            color: #64748b;
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
         }
         
         .btn {
             padding: 14px 35px;
             border-radius: 8px;
-            font-weight: 600;
             text-decoration: none;
-            border: 2px solid transparent;
+            font-weight: 600;
+            border: none;
             cursor: pointer;
             transition: all 0.3s;
             display: inline-flex;
@@ -449,61 +506,6 @@ $avatarInitials = getAvatarInitials($userFullName);
         .btn-primary:hover {
             transform: translateY(-3px);
             box-shadow: 0 10px 25px rgba(26, 41, 128, 0.3);
-        }
-        
-        .btn-secondary {
-            background: white;
-            color: #475569;
-            border: 2px solid #cbd5e1;
-        }
-        
-        .btn-secondary:hover {
-            background: #f1f5f9;
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-        
-        /* User info summary */
-        .user-summary {
-            background: linear-gradient(135deg, #f8f9fa, #ffffff);
-            border-radius: 10px;
-            padding: 25px;
-            margin-bottom: 40px;
-            border-left: 4px solid #26d0ce;
-        }
-        
-        .user-summary h3 {
-            color: #1a2980;
-            margin-bottom: 20px;
-            font-size: 1.3rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-        }
-        
-        .summary-item {
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-        }
-        
-        .summary-label {
-            color: #64748b;
-            font-size: 0.9rem;
-            margin-bottom: 5px;
-        }
-        
-        .summary-value {
-            color: #1e293b;
-            font-weight: 600;
-            font-size: 1.1rem;
         }
         
         /* Footer */
@@ -589,31 +591,26 @@ $avatarInitials = getAvatarInitials($userFullName);
                 width: auto;
             }
             
-            .edit-container {
+            .container {
                 margin: 140px auto 30px;
-                padding: 0 15px;
-            }
-            
-            .edit-card {
-                padding: 25px;
+                padding: 15px;
             }
             
             .page-title {
-                font-size: 1.7rem;
+                font-size: 2rem;
             }
             
-            .form-row {
-                grid-template-columns: 1fr;
+            .borrow-header {
+                flex-direction: column;
                 gap: 15px;
             }
             
-            .form-actions {
-                flex-direction: column;
+            .borrow-details {
+                grid-template-columns: 1fr;
             }
             
-            .btn {
-                width: 100%;
-                justify-content: center;
+            .borrow-card {
+                padding: 20px;
             }
         }
         
@@ -627,7 +624,17 @@ $avatarInitials = getAvatarInitials($userFullName);
             }
             
             .page-title {
-                font-size: 1.5rem;
+                font-size: 1.7rem;
+            }
+            
+            .borrow-id {
+                font-size: 1.2rem;
+            }
+            
+            .book-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
             }
         }
     </style>
@@ -652,9 +659,7 @@ $avatarInitials = getAvatarInitials($userFullName);
                 <a href="my_borrows.php">
                     <i class="fas fa-book"></i> Sách đang mượn
                 </a>
-                <a href="edit_user.php" style="color: #1a2980;">
-                    <i class="fas fa-user"></i> Hồ sơ
-                </a>
+                <a href="edit_user.php">Hồ sơ</a>
             </div>
             
             <!-- User Avatar -->
@@ -689,120 +694,109 @@ $avatarInitials = getAvatarInitials($userFullName);
     </header>
     
     <!-- Main Content -->
-    <div class="edit-container">
-        <div class="edit-card">
-            <h1 class="page-title">
-             Thông tin cá nhân
-            </h1>
-            
-            <!-- Thông báo -->
-            <?php if (isset($_SESSION['success'])): ?>
-            <div class="message success">
-                <i class="fas fa-check-circle"></i> <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
+    <div class="container">
+        <h1 class="page-title">
+         Sách đang mượn
+        </h1>
+        
+        <?php if (empty($current_borrows)): ?>
+            <div class="empty-state">
+                <i class="fas fa-book-open"></i>
+                <h3>Bạn không có sách nào đang mượn</h3>
+                <p>Hãy tìm sách và thêm vào giỏ mượn, sau đó tạo phiếu mượn để bắt đầu mượn sách!</p>
+
             </div>
-            <?php endif; ?>
-            
-            <?php if (isset($_SESSION['error'])): ?>
-            <div class="message error">
-                <i class="fas fa-exclamation-circle"></i> <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
-            </div>
-            <?php endif; ?>
-            
-            <!-- Form chỉnh sửa -->
-            <form method="POST">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">
-                            <i class="fas fa-id-card"></i> Mã độc giả
-                        </label>
-                        <input type="text" class="form-control" value="<?php echo htmlspecialchars($doc_gia['Ma_doc_gia']); ?>" disabled>
-                        <div style="font-size: 0.85rem; color: #64748b; margin-top: 5px;">
-                            Mã này được tự động tạo từ tên đăng nhập của bạn
+        <?php else: ?>
+            <div class="borrow-cards-container">
+                <?php foreach ($current_borrows as $borrow): 
+                    // Lấy chi tiết sách trong phiếu mượn
+                    $stmt = $pdo->prepare("SELECT c.*, s.Ten_sach, s.Ten_tac_gia 
+                                          FROM CHI_TIET_MUON c 
+                                          JOIN SACH s ON c.Ma_sach = s.Ma_sach 
+                                          WHERE c.Ma_phieu_muon = ?");
+                    $stmt->execute([$borrow['Ma_phieu_muon']]);
+                    $books = $stmt->fetchAll();
+                    
+                    // Xác định trạng thái
+                    if ($borrow['con_lai'] < 0) {
+                        $status_class = 'status-overdue';
+                        $status_text = 'Quá hạn ' . abs($borrow['con_lai']) . ' ngày';
+                        $card_class = 'overdue';
+                        $status_icon = 'fas fa-exclamation-triangle';
+                    } elseif ($borrow['con_lai'] <= 2) {
+                        $status_class = 'status-warning';
+                        $status_text = 'Sắp hết hạn (' . $borrow['con_lai'] . ' ngày)';
+                        $card_class = 'warning';
+                        $status_icon = 'fas fa-clock';
+                    } else {
+                        $status_class = 'status-active';
+                        $status_text = 'Đang mượn (' . $borrow['con_lai'] . ' ngày còn lại)';
+                        $card_class = '';
+                        $status_icon = 'fas fa-check-circle';
+                    }
+                ?>
+                <div class="borrow-card <?php echo $card_class; ?>">
+                    <div class="borrow-header">
+                        <div>
+                            <div class="borrow-id">Mã phiếu: <?php echo $borrow['Ma_phieu_muon']; ?></div>
+                            <div style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">
+                                Tạo ngày: <?php echo date('d/m/Y', strtotime($borrow['Ngay_muon'])); ?>
+                            </div>
+                        </div>
+                        <span class="borrow-status <?php echo $status_class; ?>">
+                            <i class="<?php echo $status_icon; ?>"></i>
+                            <?php echo $status_text; ?>
+                        </span>
+                    </div>
+                    
+                    <div class="borrow-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Ngày mượn</div>
+                            <div class="detail-value"><?php echo date('d/m/Y', strtotime($borrow['Ngay_muon'])); ?></div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Hạn trả</div>
+                            <div class="detail-value"><?php echo date('d/m/Y', strtotime($borrow['Ngay_hen_tra'])); ?></div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Số sách</div>
+                            <div class="detail-value"><?php echo $borrow['so_sach']; ?> cuốn</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Tình trạng</div>
+                            <div class="detail-value">
+                                <?php if ($borrow['con_lai'] < 0): ?>
+                                    <span style="color: #ef4444;">Quá hạn</span>
+                                <?php elseif ($borrow['con_lai'] <= 2): ?>
+                                    <span style="color: #f59e0b;">Sắp hết hạn</span>
+                                <?php else: ?>
+                                    <span style="color: #10b981;">Đang mượn</span>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label class="form-label">
-                            <i class="fas fa-user"></i> Tên đăng nhập
-                        </label>
-                        <input type="text" class="form-control" value="<?php echo htmlspecialchars($username); ?>" disabled>
-                        <div style="font-size: 0.85rem; color: #64748b; margin-top: 5px;">
-                            Không thể thay đổi tên đăng nhập
+                    <div class="books-list">
+                        <div class="books-list-title">
+                            <i class="fas fa-list"></i>
+                            Danh sách sách đang mượn (<?php echo count($books); ?> cuốn)
                         </div>
+                        <?php foreach ($books as $book): ?>
+                        <div class="book-item">
+                            <div class="book-info">
+                                <div class="book-title"><?php echo htmlspecialchars($book['Ten_sach']); ?></div>
+                                <div class="book-author"><?php echo htmlspecialchars($book['Ten_tac_gia'] ?? 'Không rõ'); ?></div>
+                            </div>
+                            <div style="color: #64748b; font-size: 0.9rem; text-align: right;">
+                                Mã: <?php echo htmlspecialchars($book['Ma_sach']); ?>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
                     </div>
                 </div>
-                
-                <div class="form-group">
-                    <label class="form-label">
-                    </i> Họ và tên <span style="color: #ef4444;">*</span>
-                    </label>
-                    <input type="text" name="ho_ten" class="form-control" 
-                           value="<?php echo htmlspecialchars($doc_gia['Ho_ten']); ?>" 
-                           required
-                           placeholder="Nhập họ và tên đầy đủ">
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">
-                        </i> Ngày sinh
-                        </label>
-                        <input type="date" name="ngay_sinh" class="form-control" 
-                               value="<?php echo $doc_gia['Ngay_sinh']; ?>">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">
-                        </i> Giới tính
-                        </label>
-                        <select name="gioi_tinh" class="form-control">
-                            <option value="">-- Chọn giới tính --</option>
-                            <option value="Nam" <?php echo ($doc_gia['Gioi_tinh'] == 'Nam') ? 'selected' : ''; ?>>Nam</option>
-                            <option value="Nữ" <?php echo ($doc_gia['Gioi_tinh'] == 'Nữ') ? 'selected' : ''; ?>>Nữ</option>
-                            <option value="Khác" <?php echo ($doc_gia['Gioi_tinh'] == 'Khác') ? 'selected' : ''; ?>>Khác</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">
-                    </i> Địa chỉ
-                    </label>
-                    <input type="text" name="dia_chi" class="form-control" 
-                           value="<?php echo htmlspecialchars($doc_gia['Dia_chi']); ?>"
-                           placeholder="Nhập địa chỉ của bạn">
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">
-                        </i> Số điện thoại
-                        </label>
-                        <input type="tel" name="sdt" class="form-control" 
-                               value="<?php echo htmlspecialchars($doc_gia['SDT']); ?>"
-                               placeholder="Nhập số điện thoại">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">
-                        </i> Email
-                        </label>
-                        <input type="email" name="email" class="form-control" 
-                               value="<?php echo htmlspecialchars($doc_gia['Email']); ?>"
-                               placeholder="Nhập địa chỉ email">
-                    </div>
-                </div>
-                
-                <div class="form-actions">
-                    <a href="index.php" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Quay lại
-                    </a>
-                    <button type="submit" class="btn btn-primary">
-                    </i> Cập nhật thông tin
-                    </button>
-                </div>
-            </form>
-        </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </div>
 
     <!-- Footer -->
@@ -845,40 +839,28 @@ $avatarInitials = getAvatarInitials($userFullName);
     </footer>
 
     <script>
-        // Tự động ẩn thông báo sau 5 giây
-        setTimeout(function() {
-            const messages = document.querySelectorAll('.message');
-            messages.forEach(message => {
-                message.style.transition = 'opacity 0.5s';
-                message.style.opacity = '0';
-                setTimeout(() => {
-                    message.style.display = 'none';
-                }, 500);
+        // Hiệu ứng hover cho thẻ phiếu mượn
+        document.querySelectorAll('.borrow-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-5px)';
+                this.style.boxShadow = '0 15px 35px rgba(0, 0, 0, 0.15)';
             });
-        }, 5000);
-        
-        // Xác nhận khi rời trang với form chưa lưu
-        let formChanged = false;
-        const form = document.querySelector('form');
-        const inputs = form.querySelectorAll('input, select');
-        
-        inputs.forEach(input => {
-            input.addEventListener('change', function() {
-                formChanged = true;
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '0 10px 30px rgba(0,0,0,0.1)';
             });
         });
         
-        // Ngăn rời trang nếu form đã thay đổi
-        window.addEventListener('beforeunload', function(e) {
-            if (formChanged) {
-                e.preventDefault();
-                e.returnValue = 'Bạn có thay đổi chưa được lưu. Bạn có chắc chắn muốn rời trang?';
-            }
-        });
-        
-        // Reset formChanged khi submit
-        form.addEventListener('submit', function() {
-            formChanged = false;
+        // Hiệu ứng hover cho thẻ sách
+        document.querySelectorAll('.book-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.background = 'white';
+            });
+            
+            item.addEventListener('mouseleave', function() {
+                this.style.background = '';
+            });
         });
     </script>
 </body>
