@@ -36,19 +36,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // BẮT ĐẦU TRANSACTION
         $pdo->beginTransaction();
 
-        // 1. KIỂM TRA XEM CÓ THỂ LOẠI LIÊN QUAN KHÔNG
-        $check_categories = $pdo->prepare("SELECT COUNT(*) FROM sach_the_loai WHERE Ma_sach = ?");
-        $check_categories->execute([$ma_sach]);
-        $has_categories = $check_categories->fetchColumn() > 0;
+        // 1. KIỂM TRA XEM CÓ SÁCH TRONG GIỎ MƯỢN TẠM KHÔNG
+        $check_cart_stmt = $pdo->prepare("SELECT COUNT(*) FROM gio_muon_tam WHERE Ma_sach = ?");
+        $check_cart_stmt->execute([$ma_sach]);
+        $has_in_cart = $check_cart_stmt->fetchColumn() > 0;
 
-        // 3. XÓA DỮ LIỆU LIÊN QUAN TRONG BẢNG sach_the_loai TRƯỚC
-        if ($has_categories) {
-            $delete_categories_stmt = $pdo->prepare("DELETE FROM sach_the_loai WHERE Ma_sach = ?");
-            $delete_categories_stmt->execute([$ma_sach]);
+        if ($has_in_cart) {
+            // XÓA SÁCH TRONG GIỎ MƯỢN TẠM
+            $delete_cart_stmt = $pdo->prepare("DELETE FROM gio_muon_tam WHERE Ma_sach = ?");
+            $delete_cart_stmt->execute([$ma_sach]);
         }
 
+        // 2. KIỂM TRA XEM CÓ SÁCH TRONG PHIẾU MƯỢN TẠM THỜI KHÔNG
+        $check_temp_borrow_stmt = $pdo->prepare("SELECT COUNT(*) FROM phieu_muon_tam_thoi WHERE Ma_sach = ?");
+        $check_temp_borrow_stmt->execute([$ma_sach]);
+        $has_in_temp_borrow = $check_temp_borrow_stmt->fetchColumn() > 0;
 
-        
+        if ($has_in_temp_borrow) {
+            // XÓA SÁCH TRONG PHIẾU MƯỢN TẠM THỜI
+            $delete_temp_borrow_stmt = $pdo->prepare("DELETE FROM phieu_muon_tam_thoi WHERE Ma_sach = ?");
+            $delete_temp_borrow_stmt->execute([$ma_sach]);
+        }
+
+        // 3. KIỂM TRA XEM CÓ SÁCH TRONG CHI TIẾT MƯỢN KHÔNG (PHIẾU MƯỢN CHÍNH THỨC)
+        $check_borrow_detail_stmt = $pdo->prepare("SELECT COUNT(*) FROM chi_tiet_muon WHERE Ma_sach = ?");
+        $check_borrow_detail_stmt->execute([$ma_sach]);
+        $has_in_borrow_detail = $check_borrow_detail_stmt->fetchColumn() > 0;
+
+        if ($has_in_borrow_detail) {
+            // KHÔNG THỂ XÓA SÁCH ĐANG ĐƯỢC MƯỢN
+            throw new Exception("Không thể xóa sách vì sách này đang được mượn trong hệ thống. Vui lòng đợi tất cả độc giả trả sách trước khi xóa.");
+        }
+
+        // 4. KIỂM TRA XEM CÓ SÁCH TRONG CHI TIẾT NHẬP KHÔNG
+        $check_import_detail_stmt = $pdo->prepare("SELECT COUNT(*) FROM chi_tiet_nhap WHERE Ma_sach = ?");
+        $check_import_detail_stmt->execute([$ma_sach]);
+        $has_in_import_detail = $check_import_detail_stmt->fetchColumn() > 0;
+
+        if ($has_in_import_detail) {
+            // XÓA SÁCH TRONG CHI TIẾT NHẬP
+            $delete_import_detail_stmt = $pdo->prepare("DELETE FROM chi_tiet_nhap WHERE Ma_sach = ?");
+            $delete_import_detail_stmt->execute([$ma_sach]);
+        }
 
         // 5. CUỐI CÙNG MỚI XÓA SÁCH
         $stmt = $pdo->prepare("DELETE FROM SACH WHERE Ma_sach = ?");
@@ -65,10 +94,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Hiển thị thông báo lỗi cụ thể
         if (strpos($e->getMessage(), 'foreign key constraint') !== false) {
-            $error = "Không thể xóa sách vì vẫn còn dữ liệu liên quan. Vui lòng kiểm tra lại các phiếu mượn hoặc liên hệ quản trị viên.";
+            $error = "Không thể xóa sách vì vẫn còn dữ liệu liên quan. Có thể sách đang được mượn hoặc có trong chi tiết nhập sách.";
         } else {
             $error = "Lỗi khi xóa sách: " . $e->getMessage();
         }
+    } catch (Exception $e) {
+        // ROLLBACK NẾU CÓ LỖI TỪ EXCEPTION
+        $pdo->rollBack();
+        $error = $e->getMessage();
     }
 }
 ?>
@@ -327,6 +360,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-left: 15px;
         }
 
+        /* Kiểm tra trạng thái mượn */
+        .borrow-status-check {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .status-check-ok {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+        }
+
+        .status-check-warning {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+        }
+
+        .status-check-danger {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
         @media (max-width: 768px) {
             .delete-card {
                 padding: 30px 20px;
@@ -359,17 +418,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="delete-bg">
     <div class="auth-center">
         <div class="delete-card">
-            <div class="delete-icon">⚠️</div>
+            <div class="delete-icon"></div>
             <h2 class="delete-title">Xác nhận xóa sách</h2>
             <p class="delete-subtitle">Bạn sắp xóa một cuốn sách khỏi hệ thống thư viện</p>
             
             <!-- Hiển thị thông báo lỗi nếu có -->
             <?php if (!empty($error)): ?>
-                <div class="message error">❌ <?php echo htmlspecialchars($error); ?></div>
+                <div class="message error"> <?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
 
             <div class="book-info">
-                <h4>📖 Thông tin sách sẽ bị xóa</h4>
+                <h4> Thông tin sách sẽ bị xóa</h4>
                 <div class="book-detail">
                     <strong>Mã sách:</strong>
                     <span><?php echo htmlspecialchars($book['Ma_sach']); ?></span>
@@ -399,40 +458,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <span><?php echo htmlspecialchars($book['So_ban']); ?></span>
                 </div>
                 <div class="book-detail">
+                    <strong>Đang mượn:</strong>
+                    <span><?php echo htmlspecialchars($book['So_ban_dang_muon']); ?> bản</span>
+                </div>
+                <div class="book-detail">
                     <strong>Trạng thái:</strong>
                     <span>
                         <?php echo htmlspecialchars($book['Trang_thai']); ?>
-                        <span class="book-status <?php echo $book['Trang_thai'] === 'Còn' ? 'status-available' : 'status-unavailable'; ?>">
-                            <?php echo $book['Trang_thai'] === 'Còn' ? 'Còn' : 'Hết'; ?>
+                            <?php echo $book['Trang_thai'] === 'Còn' ? 'status-available' : 'status-unavailable'; ?>">
                         </span>
                     </span>
                 </div>
             </div>
 
-            <!-- Thông tin phụ thuộc -->
-            <div class="dependencies-info">
-                <h5>📋 Dữ liệu sẽ bị xóa cùng:</h5>
-                <ul class="dependencies-list">
-                    <li>Thông tin thể loại của sách</li>
-                    <li>Lịch sử mượn/trả liên quan đến sách</li>
-                    <li>Tất cả dữ liệu thống kê liên quan</li>
-                </ul>
+            <!-- Kiểm tra trạng thái mượn -->
+            <?php
+            // Kiểm tra xem sách có đang được mượn không
+            $check_borrow_stmt = $pdo->prepare("SELECT COUNT(*) FROM chi_tiet_muon WHERE Ma_sach = ?");
+            $check_borrow_stmt->execute([$ma_sach]);
+            $is_borrowed = $check_borrow_stmt->fetchColumn() > 0;
+            
+            $status_class = 'status-check-ok';
+            $status_text = ' Sách có thể xóa được (không có ai đang mượn)';
+            
+            if ($is_borrowed) {
+                $status_class = 'status-check-danger';
+                $status_text = ' Không thể xóa sách vì đang có độc giả mượn!';
+            } elseif ($book['So_ban_dang_muon'] > 0) {
+                $status_class = 'status-check-warning';
+                $status_text = ' Sách đang có người mượn trong hệ thống. Kiểm tra lại trước khi xóa.';
+            }
+            ?>
+            
+            <div class="borrow-status-check <?php echo $status_class; ?>">
+                <?php echo $status_text; ?>
             </div>
 
-            <div class="warning-message">
-                <h4>⚠️ Cảnh báo quan trọng</h4>
-                <ul>
-                    <li><strong>Hành động này không thể hoàn tác</strong> - Dữ liệu sẽ bị xóa vĩnh viễn</li>
-                    <li><strong>Ảnh hưởng đến hệ thống</strong> - Tất cả dữ liệu liên quan đến sách sẽ bị xóa</li>
-                    <li><strong>Ảnh hưởng đến thống kê</strong> - Sẽ ảnh hưởng đến thống kê và báo cáo hệ thống</li>
-                </ul>
-            </div>
-
+           
             <div class="delete-actions">
-                <form method="POST" onsubmit="showLoading()">
-                    <button type="submit" class="btn-lg btn-danger">🗑️ Xóa sách</button>
-                </form>
-                <a href="list_book.php" class="btn-lg btn-secondary">↩️ Quay lại</a>
+                <?php if (!$is_borrowed): ?>
+                    <form method="POST" onsubmit="showLoading()">
+                        <button type="submit" class="btn-lg btn-danger"> Xóa sách</button>
+                    </form>
+                <?php else: ?>
+                    <button class="btn-lg btn-danger" disabled title="Không thể xóa sách đang được mượn"> Không thể xóa</button>
+                <?php endif; ?>
+                <a href="list_book.php" class="btn-lg btn-secondary"> Quay lại</a>
             </div>
 
             <div class="loading" id="loading">
@@ -445,8 +516,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         function showLoading() {
             document.getElementById('loading').style.display = 'block';
-            document.querySelector('button[type="submit"]').disabled = true;
-            document.querySelector('button[type="submit"]').innerHTML = '⏳ Đang xóa...';
+            const submitBtn = document.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = ' Đang xóa...';
+            }
         }
     </script>
 </body>

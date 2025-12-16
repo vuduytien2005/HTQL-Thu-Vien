@@ -640,7 +640,7 @@ $avatarInitials = getAvatarInitials($userFullName);
     </style>
 </head>
 <body>
-    <!-- Header & Navigation -->
+    <!-- Header & Navigation -->    
     <header>
         <div class="nav-container">
             <a href="index.php" class="logo">
