@@ -384,7 +384,7 @@ if (isset($_SESSION['login_message'])) {
             </form>
 
             <div class="auth-links">
-                <a href="../public/index.php">
+                <a href="../index.php">
                     <i class="fas fa-home"></i> Về trang chủ
                 </a>
                 <span style="color: #ccc;">|</span>

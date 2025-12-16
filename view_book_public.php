@@ -822,10 +822,10 @@ $page_title = $book['Ten_sach'] ?? 'Chi tiết sách';
                 
                 <!-- Book Actions -->
                 <div class="book-actions">
-                    <a href="../public/index.php#books" class="action-btn btn-back">
+                    <a href="index.php#books" class="action-btn btn-back">
                         <i class="fas fa-arrow-left"></i> Quay lại danh sách
                     </a>
-                    <a href="../public/index.php" class="action-btn btn-home">
+                    <a href="index.php" class="action-btn btn-home">
                         <i class="fas fa-home"></i> Về trang chủ
                     </a>
                     
@@ -985,7 +985,7 @@ $page_title = $book['Ten_sach'] ?? 'Chi tiết sách';
                 <ul class="footer-links">
                     <li><a href="index.php">Trang chủ</a></li>
                     <li><a href="index.php#books">Sách</a></li>
-                    <li><a href="../auth/login.php">Đăng nhập</a></li>
+                    <li><a href="auth/login.php">Đăng nhập</a></li>
                 </ul>
             </div>
             
