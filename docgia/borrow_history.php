@@ -887,9 +887,8 @@ $avatarInitials = getAvatarInitials($userFullName);
                 <i class="fas fa-history"></i>
                 <h3>Chưa có lịch sử mượn sách</h3>
                 <p>Bạn chưa từng mượn sách nào. Hãy khám phá thư viện và bắt đầu mượn sách ngay!</p>
-                <a href="../index.php" class="btn btn-primary">
-                    <i class="fas fa-book-open"></i> Mượn sách ngay
-                </a>
+
+            
             </div>
         <?php else: ?>
             

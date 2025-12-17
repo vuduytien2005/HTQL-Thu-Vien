@@ -301,7 +301,7 @@ try {
                     </div>
 
                     <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">📊 Tạo báo cáo</button>
+                        <button type="submit" class="btn btn-primary"> Tạo báo cáo</button>
                         <a href="dashboard.php" class="btn btn-secondary">← Quay lại Dashboard</a>
                     </div>
                 </form>

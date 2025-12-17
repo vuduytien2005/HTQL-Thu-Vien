@@ -69,7 +69,6 @@ function time_elapsed_string($datetime) {
     $string = array(
         'y' => 'năm',
         'm' => 'tháng',
-        'w' => 'tuần',
         'd' => 'ngày',
         'h' => 'giờ',
         'i' => 'phút',
@@ -436,9 +435,7 @@ function time_elapsed_string($datetime) {
             <!-- Các nút hành động -->
             <div class="action-buttons no-print">
                 <a href="list_report.php" class="btn btn-secondary">← Quay lại danh sách</a>
-                <a href="dashboard.php" class="btn" style="background: var(--accent); color: white;">🏠 Về Dashboard</a>
-                <button onclick="window.print()" class="btn btn-primary">🖨️ In báo cáo</button>
-                <a href="export_report.php?id=<?= $report['Ma_bao_cao'] ?>" class="btn" style="background: var(--primary); color: white;">📥 Xuất file</a>
+                <a href="dashboard.php" class="btn" style="background: var(--accent); color: white;"> Về Dashboard</a>
             </div>
 
             <!-- Thông tin in ấn -->
@@ -451,13 +448,6 @@ function time_elapsed_string($datetime) {
         </div>
     </div>
 
-    <script>
-        // Thêm hiệu ứng khi in
-        document.querySelector('button[onclick="window.print()"]')?.addEventListener('click', function() {
-            setTimeout(() => {
-                alert('Báo cáo đã được gửi đến máy in');
-            }, 500);
-        });
-    </script>
+
 </body>
 </html>
