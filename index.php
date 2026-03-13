@@ -511,7 +511,6 @@
             height: 40px;
             overflow: hidden;
             display: -webkit-box;
-            -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
         }
         
@@ -895,7 +894,6 @@
     <header>
         <div class="nav-container">
             <a href="index.php" class="logo">
-                <i class="fas fa-book-open"></i>
                 <span>Thư viện Sách</span>
             </a>
             

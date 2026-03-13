@@ -67,7 +67,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         body.auth-bg {
-            background-image: url('https://4kwallpapers.com/images/walls/thumbs_3t/911.jpg');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;

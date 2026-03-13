@@ -69,10 +69,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         exit();
                     }
                 } else {
-                    $error = "❌ Mật khẩu không chính xác.";
+                    $error = "Email hoặc  mật khẩu không chính xác. ";
                 }
             } else {
-                $error = "❌ Tên đăng nhập không tồn tại.";
+                $error = "Email hoặc  mật khẩu không chính xác.";
             }
         } catch (Exception $e) {
             $error = "❌ Lỗi hệ thống: " . $e->getMessage();
@@ -106,7 +106,6 @@ if (isset($_SESSION['login_message'])) {
         }
         
         body.auth-bg {
-            background-image: url('https://images.unsplash.com/photo-1481627834876-b7833e8f5570?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;

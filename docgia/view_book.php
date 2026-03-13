@@ -743,7 +743,6 @@ $page_title = $book['Ten_sach'] ?? 'Chi tiết sách';
             margin-bottom: 8px;
             font-size: 1rem;
             display: -webkit-box;
-            -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
             line-height: 1.4;
@@ -963,13 +962,13 @@ $page_title = $book['Ten_sach'] ?? 'Chi tiết sách';
                 <a href="index.php#home">Trang chủ</a>
                 <a href="index.php#books">Sách</a>
                 <a href="cart.php">
-                    <i class="fas fa-shopping-cart"></i> Giỏ mượn
+                     Giỏ mượn
                     <?php if ($cart_count > 0): ?>
                     <span class="cart-badge"><?php echo $cart_count; ?></span>
                     <?php endif; ?>
                 </a>
                 <a href="my_borrows.php">
-                    <i class="fas fa-book"></i> Sách đang mượn
+                   Sách đang mượn
                 </a>
                 <a href="edit_user.php">Hồ sơ</a>
             </div>
@@ -1188,9 +1187,9 @@ $page_title = $book['Ten_sach'] ?? 'Chi tiết sách';
         
         <!-- Related Books -->
         <?php if (!empty($related_books)): ?>
+     <div class="book-content-section">
         <div class="related-books-section">
             <h2 class="section-title">
-                <i class="fas fa-book-open-reader"></i>
                 Sách cùng thể loại
             </h2>
             <div class="related-books-grid">
@@ -1200,9 +1199,7 @@ $page_title = $book['Ten_sach'] ?? 'Chi tiết sách';
                 $related_status_text = $related_book['Trang_thai'] === 'Còn' ? 'Có sẵn' : 'Đã hết';
                 ?>
                 <a href="view_book.php?id=<?php echo urlencode($related_book['Ma_sach']); ?>" class="related-book-card">
-                    <div class="related-book-cover">
-                        <i class="fas fa-book"></i>
-                    </div>
+
                     <div class="related-book-info">
                         <div class="related-book-title">
                             <?php echo htmlspecialchars($related_book['Ten_sach']); ?>
@@ -1219,6 +1216,7 @@ $page_title = $book['Ten_sach'] ?? 'Chi tiết sách';
             </div>
         </div>
         <?php endif; ?>
+        </div>  
     </div>
 
     <!-- Footer -->

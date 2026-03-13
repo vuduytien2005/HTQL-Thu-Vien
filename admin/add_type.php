@@ -153,13 +153,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             <?php if (isset($error)): ?>
                 <div class="message error">
-                    ❌ <?php echo htmlspecialchars($error); ?>
+                     <?php echo htmlspecialchars($error); ?>
                 </div>
             <?php endif; ?>
             
             <?php if (isset($_GET['success'])): ?>
                 <div class="message success">
-                    ✅ <?php echo htmlspecialchars($_GET['success']); ?>
+                     <?php echo htmlspecialchars($_GET['success']); ?>
                 </div>
             <?php endif; ?>
             

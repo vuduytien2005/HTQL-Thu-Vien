@@ -322,11 +322,7 @@ if (!empty($reports)) {
                                            title="Xem chi tiết báo cáo">
                                            👁️ Xem
                                         </a>
-                                        <a href="export_report.php?id=<?= $r['Ma_bao_cao'] ?>" 
-                                           class="btn-sm btn-export"
-                                           title="Xuất báo cáo">
-                                           📥 Xuất
-                                        </a>
+
                                     </div>
                                 </td>
                             </tr>
@@ -362,7 +358,6 @@ if (!empty($reports)) {
 </html>
 
 <?php
-// Helper functions - ĐÃ SỬA LỖI HÀM time_elapsed_string()
 function time_elapsed_string($datetime, $full = false) {
     $now = new DateTime;
     $ago = new DateTime($datetime);

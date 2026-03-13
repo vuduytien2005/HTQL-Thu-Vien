@@ -346,7 +346,8 @@ function time_elapsed_string($datetime) {
                     </p>
                 </div>
                 <div class="no-print">
-                    <a href="list_report.php" class="btn btn-secondary">← Danh sách báo cáo</a>
+                    <a href="dashboard.php" class="btn" style="background: var(--accent); color: white;"> Về trang chủ </a>
+
                 </div>
             </div>
 
@@ -435,7 +436,6 @@ function time_elapsed_string($datetime) {
             <!-- Các nút hành động -->
             <div class="action-buttons no-print">
                 <a href="list_report.php" class="btn btn-secondary">← Quay lại danh sách</a>
-                <a href="dashboard.php" class="btn" style="background: var(--accent); color: white;"> Về Dashboard</a>
             </div>
 
             <!-- Thông tin in ấn -->
